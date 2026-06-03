@@ -15,7 +15,7 @@ The graph has horizontal dashed lines that represent an increase in ten heart be
 
 ## How To Install 
 
-This watch is currently only for Garmin 955 Solar Forerunner watch.
+This watch face supports the Garmin Forerunner 955 / 955 Solar and the Garmin Enduro 3.
 
 You will need to set up Visual Code with Garmin's Monkey C language as instructed [here](https://developer.garmin.com/connect-iq/reference-guides/visual-studio-code-extension/). Once you have opened the cloned project then you can go to Visual Code and go to `Run > Start Debugging` (and selecting `Monkey C` as debugger). The output will be in `bin/StressWatchFace.prg`. Connect your watch to your computer via the charging cable and copy the `prg` file to `GARMIN/Apps`. Then disconnect the cable and then in watch change the watch face to the new watch face.
 
@@ -34,7 +34,7 @@ If you want to display 10 minutes or 5 minutes instead of three then you can mod
 
 ## Future Work
 
-The watch face was coded and designed specifically for the Garmin 955 Solar Forerunner watch. This watch face can be extended to other watches too.
+The watch face was originally designed for the Garmin 955 Solar Forerunner (260x260) and has been extended to the Enduro 3 (280x280). It can be extended to other watches by adding the product to `manifest.xml` — the layout scales off `dc.getWidth()`/`getHeight()`, using the 260px reference as a baseline.
 
 
 Unfortunately, the installation is a bit involved and requires some programming experience. The watch code can eventually be placed on the Connect download store too to avoid manual installation.

@@ -62,7 +62,7 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   function onStop(state as Dictionary?) as Void {}
 
   // Return the initial view of your application here
-  function getInitialView() as Array<Views or InputDelegates>? {
+  function getInitialView() as [Views] or [Views, InputDelegates] {
     //return [ new MannyrayWatchFaceView(heartData) ] as Array<Views or InputDelegates>;
     if (Toybox.WatchUi.WatchFace has :onPartialUpdate) {
       // onPartialUpdate exists

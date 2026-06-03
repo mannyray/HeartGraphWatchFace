@@ -30,7 +30,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
   };
   var dashLines = [50, 60, 70, 80, 90];
   var heartGraphLeftX;
-  var heartGraphBottomY = 205;
+  var heartGraphBottomY;
   var graphFont;
   var graphDivisions;
   var xAxisMessage;
@@ -90,11 +90,15 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     batt_x_small = batt_x + batt_width_rect;
     batt_y_small = batt_y + (batt_height_rect - batt_height_rect_small) / 2;
 
+    // Y positions designed against the 260px reference (Forerunner 955);
+    // scale by height_screen so layout adapts to taller devices (e.g. Enduro 3 at 280px).
+    heartGraphBottomY = (height_screen * 205 / 260).toNumber();
+
     heart_x = width_screen / 2;
-    heart_y = 220;
+    heart_y = (height_screen * 220 / 260).toNumber();
 
     time_x = width_screen / 2;
-    time_y = 70;
+    time_y = (height_screen * 70 / 260).toNumber();
 
     date_x = time_x;
     date_y = time_y - 20;
