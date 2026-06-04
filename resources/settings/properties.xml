@@ -2,5 +2,6 @@
 
     <property id="HeartGraphMinutes" type="number">3</property>
     <property id="BackgroundColor" type="number">0x000000</property>
+    <property id="GraphNumberColor" type="number">-2</property>
 
 </properties>

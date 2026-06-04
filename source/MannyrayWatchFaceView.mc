@@ -406,7 +406,17 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
       //draw horizontal dashed lines through graph
       drawDashedLine(dc, leftX, leftX + graphWidth, upperY - val);
 
-      dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
+      var configured =
+        Application.Properties.getValue("GraphNumberColor") as Number;
+      var numberColor;
+      if (configured == -2) {
+        numberColor = foreground_color;
+      } else if (configured == -3) {
+        numberColor = background_color;
+      } else {
+        numberColor = configured;
+      }
+      dc.setColor(numberColor, Gfx.COLOR_TRANSPARENT);
 
       // draw numbers on graph to significy vertical range
       // between dashed lines

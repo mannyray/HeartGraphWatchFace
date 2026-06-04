@@ -26,6 +26,23 @@ class SettingsMenu extends WatchUi.Menu2 {
         null
       )
     );
+    var gn = Application.Properties.getValue("GraphNumberColor") as Number;
+    var gnLabel;
+    if (gn == -2) {
+      gnLabel = "default";
+    } else if (gn == -3) {
+      gnLabel = "hidden";
+    } else {
+      gnLabel = "gray";
+    }
+    addItem(
+      new WatchUi.MenuItem(
+        "Graph Numbers",
+        gnLabel,
+        :graphNumbers,
+        null
+      )
+    );
   }
 }
 
@@ -46,6 +63,12 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       WatchUi.pushView(
         new BackgroundColorMenu(),
         new BackgroundColorDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :graphNumbers) {
+      WatchUi.pushView(
+        new GraphNumberColorMenu(),
+        new GraphNumberColorDelegate(),
         WatchUi.SLIDE_LEFT
       );
     }
@@ -131,6 +154,46 @@ class BackgroundColorDelegate extends WatchUi.Menu2InputDelegate {
   function onSelect(item as WatchUi.MenuItem) as Void {
     Application.Properties.setValue(
       "BackgroundColor",
+      item.getId() as Number
+    );
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+  }
+}
+
+class GraphNumberColorMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Graph Numbers" });
+    var current =
+      Application.Properties.getValue("GraphNumberColor") as Number;
+    // Sentinels: -2 = follow foreground (auto-contrast). -3 = match background (invisible).
+    var bg = Application.Properties.getValue("BackgroundColor") as Number;
+    var autoColor = bg == 0x000000 ? 0xFFFFFF : 0x000000;
+    addOption("Default", -2, autoColor, current);
+    addOption("Gray", 0xAAAAAA, 0xAAAAAA, current);
+    addOption("Hidden", -3, bg, current);
+  }
+
+  function addOption(
+    label as String,
+    id as Number,
+    swatchColor as Number,
+    current as Number
+  ) as Void {
+    var sub = id == current ? "current" : null;
+    addItem(
+      new WatchUi.IconMenuItem(label, sub, id, new ColorSwatch(swatchColor), null)
+    );
+  }
+}
+
+class GraphNumberColorDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    Application.Properties.setValue(
+      "GraphNumberColor",
       item.getId() as Number
     );
     WatchUi.popView(WatchUi.SLIDE_RIGHT);
