@@ -1,7 +1,11 @@
 #!/bin/bash
 # Build wrapper: regenerates source/PalettesGenerated.mc from palettes.json,
-# then invokes monkeyc for the given device(s). Usage: ./build.sh [device...]
-# Defaults to fr955 + enduro3 if no device specified.
+# then invokes monkeyc.
+#
+# Usage:
+#   ./build.sh                  builds per-device .prg files (fr955 + enduro3)
+#   ./build.sh fr955            single device .prg
+#   ./build.sh --export         builds bin/StressWatchFace.iq (store/beta bundle)
 set -e
 cd "$(dirname "$0")"
 
@@ -10,12 +14,21 @@ KEY="$HOME/Library/Application Support/Garmin/ConnectIQ/developer_key.der"
 
 python3 gen-palettes.py
 
+mkdir -p bin
+
+if [ "$1" = "--export" ]; then
+  echo "=== building .iq bundle for Connect IQ Store upload ==="
+  "$SDK/bin/monkeyc" -e -f monkey.jungle -o bin/StressWatchFace.iq -y "$KEY" -w
+  echo "=== done ==="
+  ls -la bin/StressWatchFace.iq
+  exit 0
+fi
+
 DEVICES=("$@")
 if [ ${#DEVICES[@]} -eq 0 ]; then
   DEVICES=(fr955 enduro3)
 fi
 
-mkdir -p bin
 for D in "${DEVICES[@]}"; do
   echo "=== building for $D ==="
   "$SDK/bin/monkeyc" -d "$D" -f monkey.jungle -o "bin/StressWatchFace-$D.prg" -y "$KEY" -w
