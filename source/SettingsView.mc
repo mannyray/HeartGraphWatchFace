@@ -4,96 +4,92 @@ import Toybox.Lang;
 import Toybox.WatchUi;
 
 // Top-level settings menu. Add new rows here.
+// Top-level settings menu. Just five rows — sub-menus carry the actual
+// settings. Presets first since it's the day-to-day primary action once
+// the user has tuned a few they like.
 class SettingsMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Settings" });
-    var minutes =
-      Application.Properties.getValue("HeartGraphMinutes") as Number;
-    addItem(
-      new WatchUi.MenuItem(
-        "Graph Duration",
-        minutes + " min",
-        :graphDuration,
-        null
-      )
-    );
-    var bandPx =
-      Application.Properties.getValue("GraphBandPixels") as Number;
-    addItem(
-      new WatchUi.MenuItem(
-        "Graph Size",
-        bandPx == 20 ? "double" : "normal",
-        :graphSize,
-        null
-      )
-    );
-
-    addItem(new WatchUi.MenuItem("Colours", null, :colours, null));
-
-    var minimal = Application.Properties.getValue("MinimalMode") as Boolean;
-    addItem(
-      new WatchUi.ToggleMenuItem(
-        "Minimal",
-        "graph only",
-        :minimal,
-        minimal,
-        null
-      )
-    );
-
-    var hrMin = Application.Properties.getValue("HRMin") as Number;
-    var hrStep = Application.Properties.getValue("HRStep") as Number;
-    var hrMax = Application.Properties.getValue("HRMax") as Number;
-    addItem(
-      new WatchUi.MenuItem(
-        "HR Range",
-        hrMin + " / " + hrStep + " / " + hrMax,
-        :hrRange,
-        null
-      )
-    );
-
-    var testMode = Application.Properties.getValue("TestMode") as Boolean;
-    addItem(
-      new WatchUi.ToggleMenuItem(
-        "Test Mode",
-        "synthetic ramp",
-        :testMode,
-        testMode,
-        null
-      )
-    );
-
     addItem(new WatchUi.MenuItem("Presets", null, :presets, null));
+    addItem(new WatchUi.MenuItem("Colours", null, :colours, null));
+    addItem(new WatchUi.MenuItem("Graph", null, :graph, null));
+    addItem(new WatchUi.MenuItem("Modes", null, :modes, null));
     addItem(new WatchUi.MenuItem("Reset", "to defaults", :reset, null));
   }
+  // No refreshLabels — none of the top-level rows show dynamic sub-labels.
+}
 
-  // Called by the framework when this menu returns to the foreground after
-  // a sub-menu pops — refresh sub-labels so they reflect any changes made
-  // in the sub-menu.
+class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    if (id == :presets) {
+      WatchUi.pushView(
+        new PresetsMenu(),
+        new PresetsMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :colours) {
+      WatchUi.pushView(
+        new ColoursMenu(),
+        new ColoursMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :graph) {
+      WatchUi.pushView(
+        new GraphMenu(),
+        new GraphMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :modes) {
+      WatchUi.pushView(
+        new ModesMenu(),
+        new ModesMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :reset) {
+      WatchUi.pushView(
+        new WatchUi.Confirmation("Reset all settings?"),
+        new ResetConfirmDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+}
+
+// Graph submenu — graph-related fine-tuning.
+class GraphMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Graph" });
+    addItem(new WatchUi.MenuItem("Duration", "", :graphDuration, null));
+    addItem(new WatchUi.MenuItem("Size", "", :graphSize, null));
+    addItem(new WatchUi.MenuItem("Heart Rate", "", :hrRange, null));
+    refreshLabels();
+  }
+
   function onShow() as Void {
     Menu2.onShow();
     refreshLabels();
   }
 
   function refreshLabels() as Void {
-    // Top-level layout: Graph Duration, Graph Size, Colours, Minimal, HR Range, Test Mode, Reset.
     var minutes = Application.Properties.getValue("HeartGraphMinutes") as Number;
     getItem(0).setSubLabel(minutes + " min");
 
     var bandPx = Application.Properties.getValue("GraphBandPixels") as Number;
     getItem(1).setSubLabel(bandPx == 20 ? "double" : "normal");
 
-    // index 2 (Colours) opens a submenu — no sub-label
-    // index 3 (Minimal) is a toggle — self-manages
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(4).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(2).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
-class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
+class GraphMenuDelegate extends WatchUi.Menu2InputDelegate {
   function initialize() {
     Menu2InputDelegate.initialize();
   }
@@ -112,37 +108,55 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         new GraphSizeDelegate(),
         WatchUi.SLIDE_LEFT
       );
-    } else if (id == :colours) {
-      WatchUi.pushView(
-        new ColoursMenu(),
-        new ColoursMenuDelegate(),
-        WatchUi.SLIDE_LEFT
-      );
     } else if (id == :hrRange) {
       WatchUi.pushView(
         new HRRangeMenu(),
         new HRRangeDelegate(),
         WatchUi.SLIDE_LEFT
       );
-    } else if (id == :testMode) {
-      // ToggleMenuItem flips its own state on tap; persist the new value.
-      var t = item as WatchUi.ToggleMenuItem;
-      Application.Properties.setValue("TestMode", t.isEnabled());
-    } else if (id == :minimal) {
-      var t = item as WatchUi.ToggleMenuItem;
+    }
+  }
+}
+
+// Modes submenu — Minimal + Test Mode toggles grouped together.
+class ModesMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Modes" });
+    var minimal = Application.Properties.getValue("MinimalMode") as Boolean;
+    addItem(
+      new WatchUi.ToggleMenuItem(
+        "Minimal",
+        "graph only",
+        :minimal,
+        minimal,
+        null
+      )
+    );
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    addItem(
+      new WatchUi.ToggleMenuItem(
+        "Test Mode",
+        "synthetic ramp",
+        :testMode,
+        testMode,
+        null
+      )
+    );
+  }
+}
+
+class ModesMenuDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    var t = item as WatchUi.ToggleMenuItem;
+    if (id == :minimal) {
       Application.Properties.setValue("MinimalMode", t.isEnabled());
-    } else if (id == :presets) {
-      WatchUi.pushView(
-        new PresetsMenu(),
-        new PresetsMenuDelegate(),
-        WatchUi.SLIDE_LEFT
-      );
-    } else if (id == :reset) {
-      WatchUi.pushView(
-        new WatchUi.Confirmation("Reset all settings?"),
-        new ResetConfirmDelegate(),
-        WatchUi.SLIDE_LEFT
-      );
+    } else if (id == :testMode) {
+      Application.Properties.setValue("TestMode", t.isEnabled());
     }
   }
 }
@@ -152,7 +166,7 @@ class ColoursMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Colours" });
     addItem(new WatchUi.MenuItem("Background", "", :background, null));
-    addItem(new WatchUi.MenuItem("Graph Numbers", "", :graphNumbers, null));
+    addItem(new WatchUi.MenuItem("Numbers", "", :graphNumbers, null));
     addItem(new WatchUi.MenuItem("Time & Date", "", :timeColor, null));
     addItem(
       new WatchUi.IconMenuItem(
@@ -654,7 +668,7 @@ class PaletteDelegate extends WatchUi.Menu2InputDelegate {
 // HR Range — sub-menu lets the user pick Min/Step/Max from presets.
 class HRRangeMenu extends WatchUi.Menu2 {
   function initialize() {
-    Menu2.initialize({ :title => "HR Range" });
+    Menu2.initialize({ :title => "Heart Rate" });
     addItem(new WatchUi.MenuItem("Min", "", :hrMin, null));
     addItem(new WatchUi.MenuItem("Step", "", :hrStep, null));
     addItem(new WatchUi.MenuItem("Max", "", :hrMax, null));
