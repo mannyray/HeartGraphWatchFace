@@ -82,6 +82,26 @@ class GraphDurationDelegate extends WatchUi.Menu2InputDelegate {
   }
 }
 
+class ColorSwatch extends WatchUi.Drawable {
+  var swatchColor as Number;
+
+  function initialize(color as Number) {
+    Drawable.initialize({});
+    swatchColor = color;
+  }
+
+  function draw(dc as Dc) as Void {
+    var w = dc.getWidth();
+    var h = dc.getHeight();
+    var r = (w < h ? w : h) / 2 - 1;
+    // dark ring so light swatches stay visible on light menu backgrounds
+    dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
+    dc.fillCircle(w / 2, h / 2, r);
+    dc.setColor(swatchColor, Graphics.COLOR_TRANSPARENT);
+    dc.fillCircle(w / 2, h / 2, r - 1);
+  }
+}
+
 class BackgroundColorMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Background" });
@@ -97,7 +117,9 @@ class BackgroundColorMenu extends WatchUi.Menu2 {
     current as Number
   ) as Void {
     var sub = color == current ? "current" : null;
-    addItem(new WatchUi.MenuItem(label, sub, color, null));
+    addItem(
+      new WatchUi.IconMenuItem(label, sub, color, new ColorSwatch(color), null)
+    );
   }
 }
 
