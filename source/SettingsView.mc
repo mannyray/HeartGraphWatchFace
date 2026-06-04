@@ -17,6 +17,16 @@ class SettingsMenu extends WatchUi.Menu2 {
         null
       )
     );
+    var bandPx =
+      Application.Properties.getValue("GraphBandPixels") as Number;
+    addItem(
+      new WatchUi.MenuItem(
+        "Graph Size",
+        bandPx == 20 ? "double" : "normal",
+        :graphSize,
+        null
+      )
+    );
     var bg = Application.Properties.getValue("BackgroundColor") as Number;
     addItem(
       new WatchUi.MenuItem(
@@ -91,6 +101,8 @@ class SettingsMenu extends WatchUi.Menu2 {
         null
       )
     );
+
+    addItem(new WatchUi.MenuItem("Reset", "to defaults", :reset, null));
   }
 
   // Called by the framework when this menu returns to the foreground after
@@ -105,8 +117,11 @@ class SettingsMenu extends WatchUi.Menu2 {
     var minutes = Application.Properties.getValue("HeartGraphMinutes") as Number;
     getItem(0).setSubLabel(minutes + " min");
 
+    var bandPx = Application.Properties.getValue("GraphBandPixels") as Number;
+    getItem(1).setSubLabel(bandPx == 20 ? "double" : "normal");
+
     var bg = Application.Properties.getValue("BackgroundColor") as Number;
-    getItem(1).setSubLabel(bg == 0x000000 ? "black" : "white");
+    getItem(2).setSubLabel(bg == 0x000000 ? "black" : "white");
 
     var gn = Application.Properties.getValue("GraphNumberColor") as Number;
     var gnLabel;
@@ -117,10 +132,10 @@ class SettingsMenu extends WatchUi.Menu2 {
     } else {
       gnLabel = "gray";
     }
-    getItem(2).setSubLabel(gnLabel);
+    getItem(3).setSubLabel(gnLabel);
 
     var tc = Application.Properties.getValue("TimeColor") as Number;
-    getItem(3).setSubLabel(tc == -2 ? "default" : "gray");
+    getItem(4).setSubLabel(tc == -2 ? "default" : "gray");
 
     var palettes = getPalettes();
     var idx = Application.Properties.getValue("PaletteIndex") as Number;
@@ -128,13 +143,13 @@ class SettingsMenu extends WatchUi.Menu2 {
       idx = 0;
     }
     var p = palettes[idx];
-    getItem(4).setSubLabel(p[:name]);
-    (getItem(4) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
+    getItem(5).setSubLabel(p[:name]);
+    (getItem(5) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
 
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(5).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(6).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -149,6 +164,12 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       WatchUi.pushView(
         new GraphDurationMenu(),
         new GraphDurationDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :graphSize) {
+      WatchUi.pushView(
+        new GraphSizeMenu(),
+        new GraphSizeDelegate(),
         WatchUi.SLIDE_LEFT
       );
     } else if (id == :background) {
@@ -185,7 +206,36 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       // ToggleMenuItem flips its own state on tap; persist the new value.
       var t = item as WatchUi.ToggleMenuItem;
       Application.Properties.setValue("TestMode", t.isEnabled());
+    } else if (id == :reset) {
+      WatchUi.pushView(
+        new WatchUi.Confirmation("Reset all settings?"),
+        new ResetConfirmDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
     }
+  }
+}
+
+// Writes the documented default for every setting.
+class ResetConfirmDelegate extends WatchUi.ConfirmationDelegate {
+  function initialize() {
+    ConfirmationDelegate.initialize();
+  }
+
+  function onResponse(response as WatchUi.Confirm) as Boolean {
+    if (response == WatchUi.CONFIRM_YES) {
+      Application.Properties.setValue("BackgroundColor", 0x000000);
+      Application.Properties.setValue("TimeColor", 0x555555);
+      Application.Properties.setValue("GraphNumberColor", -3); // hidden
+      Application.Properties.setValue("HRMin", 40);
+      Application.Properties.setValue("HRMax", 100);
+      Application.Properties.setValue("HRStep", 10);
+      Application.Properties.setValue("PaletteIndex", 0);
+      Application.Properties.setValue("GraphBandPixels", 10);
+      Application.Properties.setValue("HeartGraphMinutes", 3);
+      Application.Properties.setValue("TestMode", false);
+    }
+    return true;
   }
 }
 
@@ -213,6 +263,39 @@ class GraphDurationDelegate extends WatchUi.Menu2InputDelegate {
   function onSelect(item as WatchUi.MenuItem) as Void {
     Application.Properties.setValue(
       "HeartGraphMinutes",
+      item.getId() as Number
+    );
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+  }
+}
+
+class GraphSizeMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Graph Size" });
+    var current =
+      Application.Properties.getValue("GraphBandPixels") as Number;
+    addOption("Normal", 10, current);
+    addOption("Double", 20, current);
+  }
+
+  function addOption(
+    label as String,
+    value as Number,
+    current as Number
+  ) as Void {
+    var sub = value == current ? "current" : null;
+    addItem(new WatchUi.MenuItem(label, sub, value, null));
+  }
+}
+
+class GraphSizeDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    Application.Properties.setValue(
+      "GraphBandPixels",
       item.getId() as Number
     );
     WatchUi.popView(WatchUi.SLIDE_RIGHT);

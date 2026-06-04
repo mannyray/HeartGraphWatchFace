@@ -97,7 +97,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     date_y = time_y - 20;
 
     heartGraphLeftX = width_screen / 2 - (heartHistory.size() / 2).toNumber();
-    numberOnGraphOffset = ((heartHistory.size() * 3) / 4).toNumber();
+    numberOnGraphOffset = ((heartHistory.size() * 7) / 8).toNumber();
 
     setLayout(Rez.Layouts.WatchFace(dc));
   }
@@ -367,10 +367,11 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     graphWidth as Number,
     data as Array<Number>
   ) {
-    // Each palette band renders at a fixed 10 pixels of vertical space
+    // Each palette band renders at GraphBandPixels of vertical space
     // regardless of hrStep, so finer color granularity (e.g. step=5)
-    // doesn't squish labels and gridlines.
-    var bandPixels = 10;
+    // doesn't squish labels and gridlines. Setting controls 10 vs 20.
+    var bandPixels =
+      Application.Properties.getValue("GraphBandPixels") as Number;
     var maxValDetected = hrMin;
     for (var i = 0; i < data.size(); i++) {
       var val = data[i];
@@ -424,21 +425,31 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
       }
       dc.setColor(numberColor, Gfx.COLOR_TRANSPARENT);
 
-      // draw numbers on graph to significy vertical range
-      // between dashed lines
-      var oddOffset = 15;
+      // Labels alternate left/right around an invisible vertical "axis bar"
+      // at numberOnGraphOffset. Even-index labels right-justify against the
+      // bar from the left, odd-index labels left-justify against the bar
+      // from the right — each side hugs tightly and extra width (e.g.
+      // "100") just extends outward, never into the other column.
+      var barX = leftX + numberOnGraphOffset;
+      var gap = 1;
+      var labelText = lines[i] - hrStep + "";
       if (i % 2 == 0) {
-        // offset is so that we aren't stacking the numbers on top of each other
-        oddOffset = 0;
+        dc.drawText(
+          barX - gap,
+          upperY - val - 13,
+          graphFont,
+          labelText,
+          Gfx.TEXT_JUSTIFY_RIGHT
+        );
+      } else {
+        dc.drawText(
+          barX + gap,
+          upperY - val - 13,
+          graphFont,
+          labelText,
+          Gfx.TEXT_JUSTIFY_LEFT
+        );
       }
-
-      dc.drawText(
-        leftX + numberOnGraphOffset + oddOffset,
-        upperY - val - 13,
-        graphFont,
-        lines[i] - hrStep + "",
-        Gfx.TEXT_JUSTIFY_LEFT
-      );
     }
     drawXAxis(dc, leftX, upperY, data.size(), graphDivisions);
   }
