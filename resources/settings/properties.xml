@@ -3,6 +3,7 @@
     <property id="HeartGraphMinutes" type="number">3</property>
     <property id="BackgroundColor" type="number">0x000000</property>
     <property id="GraphNumberColor" type="number">-2</property>
+    <property id="TimeColor" type="number">-2</property>
     <property id="PaletteIndex" type="number">0</property>
     <property id="HRMin" type="number">40</property>
     <property id="HRStep" type="number">10</property>

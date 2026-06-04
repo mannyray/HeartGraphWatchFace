@@ -44,6 +44,16 @@ class SettingsMenu extends WatchUi.Menu2 {
       )
     );
 
+    var tc = Application.Properties.getValue("TimeColor") as Number;
+    addItem(
+      new WatchUi.MenuItem(
+        "Time & Date",
+        tc == -2 ? "default" : "gray",
+        :timeColor,
+        null
+      )
+    );
+
     var palettes = getPalettes();
     var idx = Application.Properties.getValue("PaletteIndex") as Number;
     if (idx < 0 || idx >= palettes.size()) {
@@ -109,19 +119,22 @@ class SettingsMenu extends WatchUi.Menu2 {
     }
     getItem(2).setSubLabel(gnLabel);
 
+    var tc = Application.Properties.getValue("TimeColor") as Number;
+    getItem(3).setSubLabel(tc == -2 ? "default" : "gray");
+
     var palettes = getPalettes();
     var idx = Application.Properties.getValue("PaletteIndex") as Number;
     if (idx < 0 || idx >= palettes.size()) {
       idx = 0;
     }
     var p = palettes[idx];
-    getItem(3).setSubLabel(p[:name]);
-    (getItem(3) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
+    getItem(4).setSubLabel(p[:name]);
+    (getItem(4) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
 
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(4).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(5).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -148,6 +161,12 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       WatchUi.pushView(
         new GraphNumberColorMenu(),
         new GraphNumberColorDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :timeColor) {
+      WatchUi.pushView(
+        new TimeColorMenu(),
+        new TimeColorDelegate(),
         WatchUi.SLIDE_LEFT
       );
     } else if (id == :palette) {
@@ -291,6 +310,42 @@ class GraphNumberColorDelegate extends WatchUi.Menu2InputDelegate {
       "GraphNumberColor",
       item.getId() as Number
     );
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+  }
+}
+
+class TimeColorMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Time & Date" });
+    var current = Application.Properties.getValue("TimeColor") as Number;
+    // Default: follows the auto-contrast foreground. Gray: matches the
+    // alarm and battery icons (Graphics.COLOR_DK_GRAY = 0x555555).
+    var bg = Application.Properties.getValue("BackgroundColor") as Number;
+    var autoColor = bg == 0x000000 ? 0xFFFFFF : 0x000000;
+    addOption("Default", -2, autoColor, current);
+    addOption("Gray", 0x555555, 0x555555, current);
+  }
+
+  function addOption(
+    label as String,
+    id as Number,
+    swatchColor as Number,
+    current as Number
+  ) as Void {
+    var sub = id == current ? "current" : null;
+    addItem(
+      new WatchUi.IconMenuItem(label, sub, id, new ColorSwatch(swatchColor), null)
+    );
+  }
+}
+
+class TimeColorDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    Application.Properties.setValue("TimeColor", item.getId() as Number);
     WatchUi.popView(WatchUi.SLIDE_RIGHT);
   }
 }

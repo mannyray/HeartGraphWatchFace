@@ -273,9 +273,11 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     dc.drawText(alarmX, alarmY, iconFont, alarmSymbol, Gfx.TEXT_JUSTIFY_LEFT);
   }
 
-  // draw current date
+  // draw current date — shares the Time Color setting so date and time match.
   function drawDate(dc as Dc) as Void {
-    dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
+    var configured = Application.Properties.getValue("TimeColor") as Number;
+    var color = configured == -2 ? foreground_color : configured;
+    dc.setColor(color, Gfx.COLOR_TRANSPARENT);
     dc.drawText(
       date_x,
       date_y,
@@ -287,7 +289,9 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // draw current time
   function drawTime(dc as Dc) as Void {
-    dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
+    var configured = Application.Properties.getValue("TimeColor") as Number;
+    var color = configured == -2 ? foreground_color : configured;
+    dc.setColor(color, Gfx.COLOR_TRANSPARENT);
     dc.drawText(
       time_x,
       time_y,
