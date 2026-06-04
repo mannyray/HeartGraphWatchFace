@@ -63,18 +63,19 @@ function getStressRate() as Number {
 }
 
 function getHeartRate() as Number {
+  // The sensor reports 255 when the watch is off-wrist or can't get a reading.
+  // Treat it as 0 so the graph shows a clean ~1px bar instead of pegging the
+  // max. Matches the filter already in getHeartHistory.
   var heartRate = Activity.getActivityInfo().currentHeartRate;
-  if (heartRate != null) {
+  if (heartRate != null && heartRate != 255) {
     return heartRate;
-  } else {
-    var heartIterator = ActivityMonitor.getHeartRateHistory(null, false);
-    var previous = heartIterator.next();
-    if (previous != null) {
-      return previous.heartRate;
-    } else {
-      return 0;
-    }
   }
+  var heartIterator = ActivityMonitor.getHeartRateHistory(null, false);
+  var previous = heartIterator.next();
+  if (previous != null && previous.heartRate != 255) {
+    return previous.heartRate;
+  }
+  return 0;
 }
 
 function getHeartHistory(minutes as Number) as Array<DataPair> {
