@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>StressWatchFace — Palette Editor</title>
+<style>
+  body { font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+         margin: 24px; max-width: 1080px; color: #222; }
+  h1 { margin: 0 0 4px; font-size: 20px; }
+  .hint { color: #666; font-size: 13px; margin-bottom: 18px; }
+  .toolbar { margin-bottom: 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button { padding: 6px 12px; font-size: 14px; cursor: pointer; border: 1px solid #aaa;
+           background: #fafafa; border-radius: 4px; }
+  button:hover { background: #eee; }
+  button.danger { color: #b00; border-color: #d99; }
+  button.primary { background: #1a73e8; color: white; border-color: #1a73e8; }
+  button.primary:hover { background: #1763d3; }
+  .palette { border: 1px solid #ccc; border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+  .palette-head { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .palette-head input[type=text] { font-size: 16px; padding: 4px 8px; flex: 1; }
+  .strip { display: flex; height: 32px; border-radius: 4px; overflow: hidden; border: 1px solid #aaa; margin-bottom: 8px; }
+  .strip > div { flex: 1; cursor: pointer; position: relative; }
+  .strip > div:hover { outline: 2px solid #1a73e8; outline-offset: -2px; z-index: 1; }
+  .strip > div .idx { position: absolute; top: 2px; left: 4px; font-size: 10px;
+                       color: rgba(255,255,255,.7); text-shadow: 0 0 2px rgba(0,0,0,.7); }
+  .strip > div.selected { outline: 3px solid #ff8c00; outline-offset: -3px; z-index: 2; }
+  .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+  .picker { display: grid; grid-template-columns: repeat(16, 18px); gap: 2px; margin-top: 8px; }
+  .picker > div { width: 18px; height: 18px; cursor: pointer; border: 1px solid rgba(0,0,0,.3); border-radius: 2px; position: relative; }
+  .picker > div:hover { outline: 2px solid #1a73e8; outline-offset: -1px; }
+  .picker > div.current { outline: 3px solid #ff8c00; outline-offset: -1px; z-index: 1; }
+  .picker-label { font-size: 12px; color: #666; margin-top: 10px; }
+  .hex { font-family: SF Mono, Menlo, monospace; font-size: 12px; color: #555; }
+  textarea { width: 100%; height: 240px; font-family: SF Mono, Menlo, monospace;
+             font-size: 12px; padding: 8px; box-sizing: border-box; }
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: #1a73e8; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>StressWatchFace — Palette Editor</h1>
+<p class="hint">
+  Edit the heart-rate gradient palettes. Each palette is an ordered list of colors —
+  lowest HR uses the leftmost color, highest HR uses the rightmost.
+  Only the 64 watch-displayable colors are shown (4 levels per RGB channel).
+</p>
+
+<div class="toolbar">
+  <input type="file" id="loadInput" accept=".json" style="display:none">
+  <button onclick="document.getElementById('loadInput').click()">Load palettes.json</button>
+  <button onclick="exportJson()" class="primary">Download palettes.json</button>
+  <button onclick="copyJson()">Copy to clipboard</button>
+  <button onclick="addPalette()">+ New palette</button>
+  <span class="hint" id="status" style="margin-left:auto"></span>
+</div>
+
+<div id="palettes"></div>
+
+<details>
+  <summary>Raw JSON (preview)</summary>
+  <textarea id="rawJson" readonly></textarea>
+</details>
+
+<details>
+  <summary>How this hooks up to the watch app</summary>
+  <p class="hint">
+    Save the downloaded file as <code>palettes.json</code> in the repo root, then run
+    <code>./build.sh</code>. The build wrapper calls <code>gen-palettes.py</code>
+    which writes <code>source/PalettesGenerated.mc</code>, then monkeyc compiles it
+    into the .prg. On the watch, Customize → Settings → Palette lets you pick which
+    palette is active.
+  </p>
+</details>
+
+<script>
+// 64-color watch palette: 4 levels (0x00, 0x55, 0xAA, 0xFF) per channel.
+const LEVELS = [0x00, 0x55, 0xAA, 0xFF];
+const PALETTE_64 = [];
+for (const r of LEVELS) for (const g of LEVELS) for (const b of LEVELS) {
+  PALETTE_64.push((r << 16) | (g << 8) | b);
+}
+
+let palettes = [
+  { name: "Default", colors: [0x00AA00, 0x55AA00, 0xAAFF00, 0xFFFF00, 0xFFAA00, 0xFF5500, 0xFF0000] }
+];
+let selected = { paletteIdx: null, colorIdx: null };
+
+function hex(n) {
+  return "0x" + n.toString(16).toUpperCase().padStart(6, "0");
+}
+function cssColor(n) {
+  return "#" + n.toString(16).padStart(6, "0");
+}
+function render() {
+  const container = document.getElementById("palettes");
+  container.innerHTML = "";
+  palettes.forEach((p, pi) => {
+    const div = document.createElement("div");
+    div.className = "palette";
+    const head = document.createElement("div");
+    head.className = "palette-head";
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.value = p.name;
+    nameInput.oninput = (e) => { p.name = e.target.value; updateJson(); };
+    head.appendChild(nameInput);
+    const dup = document.createElement("button");
+    dup.textContent = "Duplicate";
+    dup.onclick = () => { palettes.splice(pi + 1, 0, { name: p.name + " copy", colors: [...p.colors] }); render(); };
+    head.appendChild(dup);
+    const del = document.createElement("button");
+    del.textContent = "Delete";
+    del.className = "danger";
+    del.onclick = () => {
+      if (palettes.length === 1) { alert("Need at least one palette."); return; }
+      if (confirm("Delete palette '" + p.name + "'?")) { palettes.splice(pi, 1); render(); }
+    };
+    head.appendChild(del);
+    div.appendChild(head);
+
+    const strip = document.createElement("div");
+    strip.className = "strip";
+    p.colors.forEach((c, ci) => {
+      const cell = document.createElement("div");
+      cell.style.background = cssColor(c);
+      if (selected.paletteIdx === pi && selected.colorIdx === ci) cell.classList.add("selected");
+      const idx = document.createElement("span");
+      idx.className = "idx"; idx.textContent = ci;
+      cell.appendChild(idx);
+      cell.onclick = () => { selected = { paletteIdx: pi, colorIdx: ci }; render(); };
+      strip.appendChild(cell);
+    });
+    div.appendChild(strip);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    const add = document.createElement("button");
+    add.textContent = "+ Add color"; add.onclick = () => {
+      p.colors.push(p.colors[p.colors.length - 1] || 0x000000); render();
+    };
+    row.appendChild(add);
+    if (selected.paletteIdx === pi && selected.colorIdx !== null) {
+      const ci = selected.colorIdx;
+      const moveL = document.createElement("button");
+      moveL.textContent = "← Move left";
+      moveL.disabled = ci === 0;
+      moveL.onclick = () => {
+        [p.colors[ci - 1], p.colors[ci]] = [p.colors[ci], p.colors[ci - 1]];
+        selected.colorIdx = ci - 1; render();
+      };
+      row.appendChild(moveL);
+      const moveR = document.createElement("button");
+      moveR.textContent = "Move right →";
+      moveR.disabled = ci === p.colors.length - 1;
+      moveR.onclick = () => {
+        [p.colors[ci], p.colors[ci + 1]] = [p.colors[ci + 1], p.colors[ci]];
+        selected.colorIdx = ci + 1; render();
+      };
+      row.appendChild(moveR);
+      const rm = document.createElement("button");
+      rm.textContent = "Remove color"; rm.className = "danger";
+      rm.disabled = p.colors.length <= 1;
+      rm.onclick = () => {
+        p.colors.splice(ci, 1);
+        selected.colorIdx = Math.min(ci, p.colors.length - 1);
+        render();
+      };
+      row.appendChild(rm);
+      const hexLabel = document.createElement("span");
+      hexLabel.className = "hex";
+      hexLabel.textContent = "selected: " + hex(p.colors[ci]);
+      row.appendChild(hexLabel);
+    }
+    div.appendChild(row);
+
+    if (selected.paletteIdx === pi && selected.colorIdx !== null) {
+      const label = document.createElement("div");
+      label.className = "picker-label";
+      label.textContent = "Pick a color from the 64-color watch palette:";
+      div.appendChild(label);
+      const picker = document.createElement("div");
+      picker.className = "picker";
+      const currentValue = p.colors[selected.colorIdx];
+      PALETTE_64.forEach(c => {
+        const sq = document.createElement("div");
+        sq.style.background = cssColor(c);
+        sq.title = hex(c);
+        if (c === currentValue) sq.classList.add("current");
+        sq.onclick = () => {
+          p.colors[selected.colorIdx] = c;
+          render();
+        };
+        picker.appendChild(sq);
+      });
+      div.appendChild(picker);
+    }
+
+    container.appendChild(div);
+  });
+  updateJson();
+}
+function updateJson() {
+  const out = palettes.map(p => ({
+    name: p.name,
+    colors: p.colors.map(c => hex(c))
+  }));
+  document.getElementById("rawJson").value = JSON.stringify(out, null, 2);
+}
+function addPalette() {
+  palettes.push({ name: "New palette", colors: [0x000000, 0x555555, 0xAAAAAA, 0xFFFFFF] });
+  render();
+}
+function exportJson() {
+  const blob = new Blob([document.getElementById("rawJson").value], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "palettes.json"; a.click();
+  URL.revokeObjectURL(url);
+  setStatus("Downloaded. Save to repo root, overwriting palettes.json.");
+}
+function copyJson() {
+  navigator.clipboard.writeText(document.getElementById("rawJson").value);
+  setStatus("Copied JSON to clipboard.");
+}
+function setStatus(s) {
+  const e = document.getElementById("status");
+  e.textContent = s;
+  clearTimeout(setStatus._t);
+  setStatus._t = setTimeout(() => { e.textContent = ""; }, 3500);
+}
+document.getElementById("loadInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const text = await f.text();
+  try {
+    const parsed = JSON.parse(text);
+    palettes = parsed.map(p => ({
+      name: p.name,
+      colors: p.colors.map(c => typeof c === "string" ? parseInt(c, 16) : c)
+    }));
+    selected = { paletteIdx: null, colorIdx: null };
+    render();
+    setStatus("Loaded " + palettes.length + " palette(s).");
+  } catch (err) {
+    alert("Failed to parse JSON: " + err.message);
+  }
+});
+
+// Try to auto-load palettes.json from the same directory. This only works
+// when the page is served over http(s) (the browser blocks file:// fetch).
+// If it fails, the user picks the file manually via the Load button.
+async function tryAutoLoad() {
+  if (location.protocol === "file:") {
+    setStatus("Tip: serve via 'python3 -m http.server' for auto-load + save.");
+    return;
+  }
+  try {
+    const r = await fetch("palettes.json?_=" + Date.now());
+    if (!r.ok) return;
+    const parsed = await r.json();
+    palettes = parsed.map(p => ({
+      name: p.name,
+      colors: p.colors.map(c => typeof c === "string" ? parseInt(c, 16) : c)
+    }));
+    render();
+    setStatus("Auto-loaded " + palettes.length + " palette(s) from palettes.json.");
+  } catch (e) { /* ignore */ }
+}
+
+render();
+tryAutoLoad();
+</script>
+</body>
+</html>

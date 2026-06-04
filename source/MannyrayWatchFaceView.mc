@@ -15,20 +15,12 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // for heart graph
   var heartHistory;
-  var minValHeart = 40;
-  var maxValHeart = 110;
-  var heartColourDict = {
-    40 => 0x00aa00,
-    50 => 0x55aa00,
-    60 => 0xaaff00,
-    70 => 0xffff00,
-    80 => 0xffaa00,
-    90 => 0xff5500,
-    100 => 0xff0000,
-    110 => 0xff0000,
-    120 => 0xff0000,
-  };
-  var dashLines = [50, 60, 70, 80, 90];
+  // The active palette + HR range are read from properties on each onUpdate
+  // so settings changes take effect on the next paint.
+  var palette;
+  var hrMin = 40;
+  var hrStep = 10;
+  var hrMax = 110;
   var heartGraphLeftX;
   var heartGraphBottomY;
   var graphFont;
@@ -126,32 +118,43 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     var bg = Application.Properties.getValue("BackgroundColor") as Number;
     background_color = bg;
     foreground_color = bg == 0x000000 ? Gfx.COLOR_WHITE : Gfx.COLOR_BLACK;
+
+    // Resolve palette + HR settings each tick so changes apply live.
+    var palettes = getPalettes();
+    var idx = Application.Properties.getValue("PaletteIndex") as Number;
+    if (idx < 0 || idx >= palettes.size()) {
+      idx = 0;
+    }
+    palette = palettes[idx][:colors] as Array<Number>;
+    hrMin = Application.Properties.getValue("HRMin") as Number;
+    hrStep = Application.Properties.getValue("HRStep") as Number;
+    hrMax = Application.Properties.getValue("HRMax") as Number;
+
     clearScreen(dc);
     var currentTime = Time.now();
     var currentHeartRate = getHeartRate();
 
+    // Always record real HR so test mode doesn't lose history when toggled off.
     heartHistory.addData(currentHeartRate, currentTime);
 
-    drawHeartRate(
-      dc,
-      currentHeartRate,
-      heartColourDict,
-      minValHeart,
-      maxValHeart
-    );
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    var data;
+    if (testMode) {
+      // Synthetic ramp covering the full palette range, so the user can
+      // visually evaluate gradient transitions without waiting for live data.
+      var size = heartHistory.size();
+      data = new Array<Number>[size];
+      var top = hrMin + palette.size() * hrStep;
+      for (var i = 0; i < size; i++) {
+        data[i] = hrMin + (i * (top - hrMin)) / size;
+      }
+      currentHeartRate = data[size - 1];
+    } else {
+      data = heartHistory.getOrderedArray(currentTime);
+    }
 
-    var data = heartHistory.getOrderedArray(currentTime);
-    drawGraph(
-      dc,
-      heartGraphLeftX,
-      heartGraphBottomY,
-      data.size(),
-      minValHeart,
-      maxValHeart,
-      data,
-      heartColourDict,
-      dashLines
-    );
+    drawHeartRate(dc, currentHeartRate);
+    drawGraph(dc, heartGraphLeftX, heartGraphBottomY, data.size(), data);
 
     // draw alarm and battery icon at top
     drawIcons(dc);
@@ -296,19 +299,8 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // draw current heart rate. We colour code so user
   // knows if it is too high or not.
-  function drawHeartRate(
-    dc,
-    heartRate as Number,
-    colourDict as Dictionary<Number, Number>,
-    minHeartRate as Number,
-    maxHeartRate as Number
-  ) as Void {
-    var colourNumber = heartRateColour(
-      heartRate,
-      colourDict,
-      minHeartRate,
-      maxHeartRate
-    );
+  function drawHeartRate(dc, heartRate as Number) as Void {
+    var colourNumber = heartRateColour(heartRate);
 
     if (heartRate != null) {
       dc.setColor(colourNumber, Gfx.COLOR_TRANSPARENT);
@@ -347,24 +339,21 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     }
   }
 
-  // based on a heart rate find the nearest (floored) key in colourDict
-  // to determine the colour value of heart rate. minVal and maxVal. Assuming keys in colourDict
-  // if sorted, grow by 10s and that the values are valid colours.
-  function heartRateColour(
-    heartRate as Number,
-    colourDict as Dictionary<Number, Number>,
-    minVal as Number,
-    maxVal as Number
-  ) as Number {
-    var val = heartRate;
-    if (val < minVal) {
-      val = minVal;
+  // Map an HR value into the active palette by dividing the range
+  // [hrMin .. hrMin + len*hrStep) into len equal buckets. HR below
+  // hrMin clamps to the first color; HR above the top bucket clamps
+  // to the last color (so a higher-than-expected HR still gets a
+  // sensible "top of scale" colour).
+  function heartRateColour(heartRate as Number) as Number {
+    var idx = (heartRate - hrMin) / hrStep;
+    if (idx < 0) {
+      idx = 0;
     }
-    if (val > maxVal) {
-      val = maxVal;
+    var last = palette.size() - 1;
+    if (idx > last) {
+      idx = last;
     }
-    var colourIndex = val - (val % 10);
-    return colourDict.get(colourIndex);
+    return palette[idx];
   }
 
   function drawGraph(
@@ -372,13 +361,13 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     leftX as Number,
     upperY as Number,
     graphWidth as Number,
-    minVal as Number,
-    maxVal as Number,
-    data as Array<Number>,
-    colourDict as Dictionary<Number, Number>,
-    lines as Array<Number>
+    data as Array<Number>
   ) {
-    var maxValDetected = minVal;
+    // Each palette band renders at a fixed 10 pixels of vertical space
+    // regardless of hrStep, so finer color granularity (e.g. step=5)
+    // doesn't squish labels and gridlines.
+    var bandPixels = 10;
+    var maxValDetected = hrMin;
     for (var i = 0; i < data.size(); i++) {
       var val = data[i];
 
@@ -386,23 +375,36 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
         maxValDetected = val;
       }
 
-      if (val < minVal) {
-        val = minVal;
+      if (val < hrMin) {
+        val = hrMin;
+      }
+      // Cap bar height so unusually high HR doesn't overflow the chart area
+      // (color still maps to the top palette bucket via heartRateColour).
+      var displayVal = val;
+      if (displayVal > hrMax) {
+        displayVal = hrMax;
       }
 
       // colour code the heart rate in graph based on its value
-      var colourNumber = heartRateColour(val, colourDict, minVal, maxVal);
+      var colourNumber = heartRateColour(val);
       dc.setColor(colourNumber, colourNumber);
-      val = val - minVal + 1;
+      var barPixels = ((displayVal - hrMin) * bandPixels) / hrStep + 1;
       // draw a single 'bar in the bar graph'
-      dc.fillRectangle(leftX + i, upperY - val, 1, val);
+      dc.fillRectangle(leftX + i, upperY - barPixels, 1, barPixels);
+    }
+
+    // Dash lines mark each palette bucket boundary, labeled by the
+    // HR at the bottom of the bucket (i.e. hrMin, hrMin+step, ...).
+    var lines = new Array<Number>[palette.size()];
+    for (var i = 0; i < palette.size(); i++) {
+      lines[i] = hrMin + (i + 1) * hrStep;
     }
 
     for (var i = 0; i < lines.size(); i++) {
       if (lines[i] > maxValDetected) {
         break;
       }
-      var val = lines[i] - minVal;
+      var val = (i + 1) * bandPixels;
       //draw horizontal dashed lines through graph
       drawDashedLine(dc, leftX, leftX + graphWidth, upperY - val);
 
@@ -430,7 +432,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
         leftX + numberOnGraphOffset + oddOffset,
         upperY - val - 13,
         graphFont,
-        lines[i] - 10 + "",
+        lines[i] - hrStep + "",
         Gfx.TEXT_JUSTIFY_LEFT
       );
     }

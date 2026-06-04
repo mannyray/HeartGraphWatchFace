@@ -1,0 +1,55 @@
+[
+  {
+    "name": "Default",
+    "colors": [
+      "0x00AA00",
+      "0x55AA00",
+      "0xAAFF00",
+      "0xFFFF00",
+      "0xFFAA00",
+      "0xFF5500",
+      "0xFF0000"
+    ]
+  },
+  {
+    "name": "Cool",
+    "colors": [
+      "0x0000AA",
+      "0x0055AA",
+      "0x00AAAA",
+      "0x55AAFF",
+      "0xAA55FF",
+      "0xFF00AA"
+    ]
+  },
+  {
+    "name": "Warning 8",
+    "colors": [
+      "0x00AA00",
+      "0x00FF00",
+      "0x55FF00",
+      "0xAAFF00",
+      "0xFFFF00",
+      "0xFFAA00",
+      "0xFF5500",
+      "0xFF0000"
+    ]
+  },
+  {
+    "name": "Hard 3",
+    "colors": [
+      "0x00AA00",
+      "0xFFAA00",
+      "0xFF0000"
+    ]
+  },
+  {
+    "name": "Hard 4",
+    "colors": [
+      "0x00AA55",
+      "0xAAAA55",
+      "0xFFAA55",
+      "0xFF0000"
+    ]
+  }
+]

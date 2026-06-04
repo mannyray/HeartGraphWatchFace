@@ -43,6 +43,85 @@ class SettingsMenu extends WatchUi.Menu2 {
         null
       )
     );
+
+    var palettes = getPalettes();
+    var idx = Application.Properties.getValue("PaletteIndex") as Number;
+    if (idx < 0 || idx >= palettes.size()) {
+      idx = 0;
+    }
+    addItem(
+      new WatchUi.IconMenuItem(
+        "Palette",
+        palettes[idx][:name],
+        :palette,
+        new PaletteStrip(palettes[idx][:colors]),
+        null
+      )
+    );
+
+    var hrMin = Application.Properties.getValue("HRMin") as Number;
+    var hrStep = Application.Properties.getValue("HRStep") as Number;
+    var hrMax = Application.Properties.getValue("HRMax") as Number;
+    addItem(
+      new WatchUi.MenuItem(
+        "HR Range",
+        hrMin + " / " + hrStep + " / " + hrMax,
+        :hrRange,
+        null
+      )
+    );
+
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    addItem(
+      new WatchUi.ToggleMenuItem(
+        "Test Mode",
+        "synthetic ramp",
+        :testMode,
+        testMode,
+        null
+      )
+    );
+  }
+
+  // Called by the framework when this menu returns to the foreground after
+  // a sub-menu pops — refresh sub-labels so they reflect any changes made
+  // in the sub-menu.
+  function onShow() as Void {
+    Menu2.onShow();
+    refreshLabels();
+  }
+
+  function refreshLabels() as Void {
+    var minutes = Application.Properties.getValue("HeartGraphMinutes") as Number;
+    getItem(0).setSubLabel(minutes + " min");
+
+    var bg = Application.Properties.getValue("BackgroundColor") as Number;
+    getItem(1).setSubLabel(bg == 0x000000 ? "black" : "white");
+
+    var gn = Application.Properties.getValue("GraphNumberColor") as Number;
+    var gnLabel;
+    if (gn == -2) {
+      gnLabel = "default";
+    } else if (gn == -3) {
+      gnLabel = "hidden";
+    } else {
+      gnLabel = "gray";
+    }
+    getItem(2).setSubLabel(gnLabel);
+
+    var palettes = getPalettes();
+    var idx = Application.Properties.getValue("PaletteIndex") as Number;
+    if (idx < 0 || idx >= palettes.size()) {
+      idx = 0;
+    }
+    var p = palettes[idx];
+    getItem(3).setSubLabel(p[:name]);
+    (getItem(3) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
+
+    var hrMin = Application.Properties.getValue("HRMin") as Number;
+    var hrStep = Application.Properties.getValue("HRStep") as Number;
+    var hrMax = Application.Properties.getValue("HRMax") as Number;
+    getItem(4).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -71,6 +150,22 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         new GraphNumberColorDelegate(),
         WatchUi.SLIDE_LEFT
       );
+    } else if (id == :palette) {
+      WatchUi.pushView(
+        new PaletteMenu(),
+        new PaletteDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :hrRange) {
+      WatchUi.pushView(
+        new HRRangeMenu(),
+        new HRRangeDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :testMode) {
+      // ToggleMenuItem flips its own state on tap; persist the new value.
+      var t = item as WatchUi.ToggleMenuItem;
+      Application.Properties.setValue("TestMode", t.isEnabled());
     }
   }
 }
@@ -196,6 +291,172 @@ class GraphNumberColorDelegate extends WatchUi.Menu2InputDelegate {
       "GraphNumberColor",
       item.getId() as Number
     );
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+  }
+}
+
+// Horizontal strip of colored bands — used as the icon for palette rows.
+class PaletteStrip extends WatchUi.Drawable {
+  var colors;
+
+  function initialize(colors) {
+    Drawable.initialize({});
+    self.colors = colors;
+  }
+
+  function draw(dc as Dc) as Void {
+    var w = dc.getWidth();
+    var h = dc.getHeight();
+    var bandWidth = w / colors.size();
+    for (var i = 0; i < colors.size(); i++) {
+      dc.setColor(colors[i], Graphics.COLOR_TRANSPARENT);
+      dc.fillRectangle(i * bandWidth, 0, bandWidth + 1, h);
+    }
+  }
+}
+
+class PaletteMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Palette" });
+    var palettes = getPalettes();
+    var current =
+      Application.Properties.getValue("PaletteIndex") as Number;
+    for (var i = 0; i < palettes.size(); i++) {
+      var p = palettes[i];
+      var sub = i == current ? "current" : null;
+      addItem(
+        new WatchUi.IconMenuItem(
+          p[:name],
+          sub,
+          i,
+          new PaletteStrip(p[:colors]),
+          null
+        )
+      );
+    }
+  }
+}
+
+class PaletteDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    Application.Properties.setValue("PaletteIndex", item.getId() as Number);
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+  }
+}
+
+// HR Range — sub-menu lets the user pick Min/Step/Max from presets.
+class HRRangeMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "HR Range" });
+    addItem(new WatchUi.MenuItem("Min", "", :hrMin, null));
+    addItem(new WatchUi.MenuItem("Step", "", :hrStep, null));
+    addItem(new WatchUi.MenuItem("Max", "", :hrMax, null));
+    refreshLabels();
+  }
+
+  function onShow() as Void {
+    Menu2.onShow();
+    refreshLabels();
+  }
+
+  function refreshLabels() as Void {
+    getItem(0).setSubLabel(
+      (Application.Properties.getValue("HRMin") as Number) + ""
+    );
+    getItem(1).setSubLabel(
+      (Application.Properties.getValue("HRStep") as Number) + ""
+    );
+    getItem(2).setSubLabel(
+      (Application.Properties.getValue("HRMax") as Number) + ""
+    );
+  }
+}
+
+class HRRangeDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    if (id == :hrMin) {
+      WatchUi.pushView(
+        new HRPresetMenu(
+          "Min",
+          "HRMin",
+          [30, 35, 40, 45, 50, 55, 60] as Array<Number>
+        ),
+        new HRPresetDelegate("HRMin"),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :hrStep) {
+      WatchUi.pushView(
+        new HRPresetMenu(
+          "Step",
+          "HRStep",
+          [5, 10, 15, 20] as Array<Number>
+        ),
+        new HRPresetDelegate("HRStep"),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :hrMax) {
+      // Max options start at HRMin + 20 and step by 10 up to 220 BPM (a
+      // sensible practical ceiling). Computed live so changing Min reshapes
+      // the Max list on the next visit.
+      var hrMin = Application.Properties.getValue("HRMin") as Number;
+      var presets = [] as Array<Number>;
+      for (var v = hrMin + 20; v <= 220; v += 10) {
+        presets.add(v);
+      }
+      WatchUi.pushView(
+        new HRPresetMenu("Max", "HRMax", presets),
+        new HRPresetDelegate("HRMax"),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+}
+
+// One presets list, parameterized by which property it edits.
+class HRPresetMenu extends WatchUi.Menu2 {
+  function initialize(
+    title as String,
+    propKey as String,
+    values as Array<Number>
+  ) {
+    Menu2.initialize({ :title => title });
+    var current = Application.Properties.getValue(propKey) as Number;
+    for (var i = 0; i < values.size(); i++) {
+      var v = values[i];
+      var sub = v == current ? "current" : null;
+      addItem(new WatchUi.MenuItem(v + "", sub, v, null));
+    }
+  }
+}
+
+class HRPresetDelegate extends WatchUi.Menu2InputDelegate {
+  var propKey;
+
+  function initialize(propKey as String) {
+    Menu2InputDelegate.initialize();
+    self.propKey = propKey;
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var value = item.getId() as Number;
+    Application.Properties.setValue(propKey, value);
+    // Safety: raising Min above (Max - 20) would put the range out of sync
+    // with what the Max picker offers. Auto-bump Max to value + 20.
+    if (propKey.equals("HRMin")) {
+      var hrMax = Application.Properties.getValue("HRMax") as Number;
+      if (hrMax < value + 20) {
+        Application.Properties.setValue("HRMax", value + 20);
+      }
+    }
     WatchUi.popView(WatchUi.SLIDE_RIGHT);
   }
 }
