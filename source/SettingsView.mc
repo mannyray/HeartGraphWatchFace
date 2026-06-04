@@ -64,6 +64,7 @@ class SettingsMenu extends WatchUi.Menu2 {
       )
     );
 
+    addItem(new WatchUi.MenuItem("Presets", null, :presets, null));
     addItem(new WatchUi.MenuItem("Reset", "to defaults", :reset, null));
   }
 
@@ -130,6 +131,12 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
     } else if (id == :minimal) {
       var t = item as WatchUi.ToggleMenuItem;
       Application.Properties.setValue("MinimalMode", t.isEnabled());
+    } else if (id == :presets) {
+      WatchUi.pushView(
+        new PresetsMenu(),
+        new PresetsMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
     } else if (id == :reset) {
       WatchUi.pushView(
         new WatchUi.Confirmation("Reset all settings?"),
@@ -225,6 +232,152 @@ class ColoursMenuDelegate extends WatchUi.Menu2InputDelegate {
         WatchUi.SLIDE_LEFT
       );
     }
+  }
+}
+
+// Presets: snapshots of all user-tunable settings that can be saved,
+// re-applied, and deleted. "Default" is a built-in entry; user-created
+// presets persist in Application.Storage.
+class PresetsMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Presets" });
+    buildItems();
+  }
+
+  function onShow() as Void {
+    Menu2.onShow();
+    rebuild();
+  }
+
+  function rebuild() as Void {
+    // Drain all items, then re-add from current storage. deleteItem(0)
+    // returns true while items remain, null/false once empty.
+    while (deleteItem(0) == true) {}
+    buildItems();
+  }
+
+  function buildItems() as Void {
+    addItem(new WatchUi.MenuItem("Default", "built-in", "Default", null));
+    var presets = getUserPresets();
+    for (var i = 0; i < presets.size(); i++) {
+      var p = presets[i] as Dictionary;
+      var name = p["name"] as String;
+      addItem(new WatchUi.MenuItem(name, null, name, null));
+    }
+    addItem(new WatchUi.MenuItem("+ Save current", null, :saveCurrent, null));
+  }
+}
+
+class PresetsMenuDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    if (id == :saveCurrent) {
+      WatchUi.pushView(
+        new WatchUi.TextPicker(""),
+        new SavePresetTextDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else {
+      // Preset row tapped — open Apply/Delete sub-menu for that preset.
+      WatchUi.pushView(
+        new PresetActionsMenu(id as String),
+        new PresetActionsDelegate(id as String),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+}
+
+class PresetActionsMenu extends WatchUi.Menu2 {
+  var presetName as String;
+
+  function initialize(name as String) {
+    Menu2.initialize({ :title => name });
+    presetName = name;
+    addItem(new WatchUi.MenuItem("Apply", null, :apply, null));
+    if (!name.equals("Default")) {
+      addItem(new WatchUi.MenuItem("Delete", null, :delete, null));
+    }
+  }
+}
+
+class PresetActionsDelegate extends WatchUi.Menu2InputDelegate {
+  var presetName as String;
+
+  function initialize(name as String) {
+    Menu2InputDelegate.initialize();
+    presetName = name;
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    if (id == :apply) {
+      var values = lookupPresetValues(presetName);
+      if (values != null) {
+        applyPresetValues(values);
+      }
+      WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    } else if (id == :delete) {
+      WatchUi.pushView(
+        new WatchUi.Confirmation("Delete preset?"),
+        new DeletePresetConfirmDelegate(presetName),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+
+  function lookupPresetValues(name as String) as Dictionary or Null {
+    if (name.equals("Default")) {
+      return getDefaultPresetValues();
+    }
+    var presets = getUserPresets();
+    for (var i = 0; i < presets.size(); i++) {
+      var p = presets[i] as Dictionary;
+      if ((p["name"] as String).equals(name)) {
+        return p["values"] as Dictionary;
+      }
+    }
+    return null;
+  }
+}
+
+class DeletePresetConfirmDelegate extends WatchUi.ConfirmationDelegate {
+  var presetName as String;
+
+  function initialize(name as String) {
+    ConfirmationDelegate.initialize();
+    presetName = name;
+  }
+
+  function onResponse(response as WatchUi.Confirm) as Boolean {
+    if (response == WatchUi.CONFIRM_YES) {
+      deletePresetByName(presetName);
+      // Pop the PresetActionsMenu so the user lands back on PresetsMenu,
+      // which will rebuild via its onShow() and reflect the deletion.
+      WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    }
+    return true;
+  }
+}
+
+class SavePresetTextDelegate extends WatchUi.TextPickerDelegate {
+  function initialize() {
+    TextPickerDelegate.initialize();
+  }
+
+  function onTextEntered(text as String, changed as Boolean) as Boolean {
+    if (text != null && text.length() > 0) {
+      savePresetWithName(text);
+    }
+    return true;
+  }
+
+  function onCancel() as Boolean {
+    return true;
   }
 }
 
