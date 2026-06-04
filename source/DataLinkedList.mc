@@ -215,8 +215,8 @@ class DataLinkedList {
   }
 
   public static function loadData(saveName as String) as Array<DataPair>? {
-    var dataValue = Storage.getValue(saveName + self.dataSuffixSaveName);
-    var dataTime = Storage.getValue(saveName + self.dataTimeSuffixSaveName);
+    var dataValue = Storage.getValue(saveName + "_data");
+    var dataTime = Storage.getValue(saveName + "_time");
     if (dataValue != null && dataTime != null) {
       var returnArray = new Array<DataPair>[dataTime.size()];
       for (var i = 0; i < dataTime.size(); i++) {
@@ -248,6 +248,12 @@ class DataLinkedList {
     for (var i = 0; i < desiredBinCount; i++) {
       desiredData[i] = new DataPair(0, currentTime);
       currentTime = currentTime.add(approximateSecondDifferenceBetweenBins);
+    }
+
+    // No prior history (fresh install, simulator with no sensor data, or
+    // first switch to a new graph duration) — return the zero-filled scaffold.
+    if (startingData.size() == 0) {
+      return desiredData;
     }
 
     var desiredDataIndex = 0;

@@ -18,7 +18,16 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   function initialize() {
     AppBase.initialize();
 
-    minutesToTrackHeartBeat = 3;
+    minutesToTrackHeartBeat =
+      Application.Properties.getValue("HeartGraphMinutes") as Number;
+    // Guard against unexpected values from settings: fall back to 3 min.
+    if (
+      minutesToTrackHeartBeat != 3 &&
+      minutesToTrackHeartBeat != 5 &&
+      minutesToTrackHeartBeat != 10
+    ) {
+      minutesToTrackHeartBeat = 3;
+    }
     if (minutesToTrackHeartBeat == 10) {
       dataDensityForHeartTrack = 201;
     } else if (minutesToTrackHeartBeat == 3) {
@@ -62,7 +71,7 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   function onStop(state as Dictionary?) as Void {}
 
   // Return the initial view of your application here
-  function getInitialView() as [Views] or [Views, InputDelegates] {
+  function getInitialView() {
     //return [ new MannyrayWatchFaceView(heartData) ] as Array<Views or InputDelegates>;
     if (Toybox.WatchUi.WatchFace has :onPartialUpdate) {
       // onPartialUpdate exists
@@ -96,6 +105,10 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   // New app settings have been received so trigger a UI update
   function onSettingsChanged() as Void {
     WatchUi.requestUpdate();
+  }
+
+  function getSettingsView() {
+    return [new SettingsMenu(), new SettingsMenuDelegate()];
   }
 }
 
