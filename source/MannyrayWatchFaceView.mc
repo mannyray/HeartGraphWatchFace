@@ -156,12 +156,17 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     drawHeartRate(dc, currentHeartRate);
     drawGraph(dc, heartGraphLeftX, heartGraphBottomY, data.size(), data);
 
-    // draw alarm and battery icon at top
-    drawIcons(dc);
-    // draw the current time in the middle
-    drawTime(dc);
-    //draw the current date between current time and icons
-    drawDate(dc);
+    // Minimal mode hides the top chrome (time, date, battery, alarm) so the
+    // graph dominates the face. HR text + perimeter ring still render.
+    var minimal = Application.Properties.getValue("MinimalMode") as Boolean;
+    if (!minimal) {
+      // draw alarm and battery icon at top
+      drawIcons(dc);
+      // draw the current time in the middle
+      drawTime(dc);
+      //draw the current date between current time and icons
+      drawDate(dc);
+    }
 
     heartHistory.backupData();
     dc.clearClip();

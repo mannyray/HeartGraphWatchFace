@@ -64,6 +64,17 @@ class SettingsMenu extends WatchUi.Menu2 {
       )
     );
 
+    var minimal = Application.Properties.getValue("MinimalMode") as Boolean;
+    addItem(
+      new WatchUi.ToggleMenuItem(
+        "Minimal",
+        "graph only",
+        :minimal,
+        minimal,
+        null
+      )
+    );
+
     var palettes = getPalettes();
     var idx = Application.Properties.getValue("PaletteIndex") as Number;
     if (idx < 0 || idx >= palettes.size()) {
@@ -137,19 +148,21 @@ class SettingsMenu extends WatchUi.Menu2 {
     var tc = Application.Properties.getValue("TimeColor") as Number;
     getItem(4).setSubLabel(tc == -2 ? "default" : "gray");
 
+    // index 5 is the Minimal toggle — no sub-label refresh needed
+
     var palettes = getPalettes();
     var idx = Application.Properties.getValue("PaletteIndex") as Number;
     if (idx < 0 || idx >= palettes.size()) {
       idx = 0;
     }
     var p = palettes[idx];
-    getItem(5).setSubLabel(p[:name]);
-    (getItem(5) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
+    getItem(6).setSubLabel(p[:name]);
+    (getItem(6) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
 
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(6).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(7).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -206,6 +219,9 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       // ToggleMenuItem flips its own state on tap; persist the new value.
       var t = item as WatchUi.ToggleMenuItem;
       Application.Properties.setValue("TestMode", t.isEnabled());
+    } else if (id == :minimal) {
+      var t = item as WatchUi.ToggleMenuItem;
+      Application.Properties.setValue("MinimalMode", t.isEnabled());
     } else if (id == :reset) {
       WatchUi.pushView(
         new WatchUi.Confirmation("Reset all settings?"),
