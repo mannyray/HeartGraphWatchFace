@@ -27,42 +27,8 @@ class SettingsMenu extends WatchUi.Menu2 {
         null
       )
     );
-    var bg = Application.Properties.getValue("BackgroundColor") as Number;
-    addItem(
-      new WatchUi.MenuItem(
-        "Background",
-        bg == 0x000000 ? "black" : "white",
-        :background,
-        null
-      )
-    );
-    var gn = Application.Properties.getValue("GraphNumberColor") as Number;
-    var gnLabel;
-    if (gn == -2) {
-      gnLabel = "default";
-    } else if (gn == -3) {
-      gnLabel = "hidden";
-    } else {
-      gnLabel = "gray";
-    }
-    addItem(
-      new WatchUi.MenuItem(
-        "Graph Numbers",
-        gnLabel,
-        :graphNumbers,
-        null
-      )
-    );
 
-    var tc = Application.Properties.getValue("TimeColor") as Number;
-    addItem(
-      new WatchUi.MenuItem(
-        "Time & Date",
-        tc == -2 ? "default" : "gray",
-        :timeColor,
-        null
-      )
-    );
+    addItem(new WatchUi.MenuItem("Colours", null, :colours, null));
 
     var minimal = Application.Properties.getValue("MinimalMode") as Boolean;
     addItem(
@@ -71,21 +37,6 @@ class SettingsMenu extends WatchUi.Menu2 {
         "graph only",
         :minimal,
         minimal,
-        null
-      )
-    );
-
-    var palettes = getPalettes();
-    var idx = Application.Properties.getValue("PaletteIndex") as Number;
-    if (idx < 0 || idx >= palettes.size()) {
-      idx = 0;
-    }
-    addItem(
-      new WatchUi.IconMenuItem(
-        "Palette",
-        palettes[idx][:name],
-        :palette,
-        new PaletteStrip(palettes[idx][:colors]),
         null
       )
     );
@@ -125,44 +76,19 @@ class SettingsMenu extends WatchUi.Menu2 {
   }
 
   function refreshLabels() as Void {
+    // Top-level layout: Graph Duration, Graph Size, Colours, Minimal, HR Range, Test Mode, Reset.
     var minutes = Application.Properties.getValue("HeartGraphMinutes") as Number;
     getItem(0).setSubLabel(minutes + " min");
 
     var bandPx = Application.Properties.getValue("GraphBandPixels") as Number;
     getItem(1).setSubLabel(bandPx == 20 ? "double" : "normal");
 
-    var bg = Application.Properties.getValue("BackgroundColor") as Number;
-    getItem(2).setSubLabel(bg == 0x000000 ? "black" : "white");
-
-    var gn = Application.Properties.getValue("GraphNumberColor") as Number;
-    var gnLabel;
-    if (gn == -2) {
-      gnLabel = "default";
-    } else if (gn == -3) {
-      gnLabel = "hidden";
-    } else {
-      gnLabel = "gray";
-    }
-    getItem(3).setSubLabel(gnLabel);
-
-    var tc = Application.Properties.getValue("TimeColor") as Number;
-    getItem(4).setSubLabel(tc == -2 ? "default" : "gray");
-
-    // index 5 is the Minimal toggle — no sub-label refresh needed
-
-    var palettes = getPalettes();
-    var idx = Application.Properties.getValue("PaletteIndex") as Number;
-    if (idx < 0 || idx >= palettes.size()) {
-      idx = 0;
-    }
-    var p = palettes[idx];
-    getItem(6).setSubLabel(p[:name]);
-    (getItem(6) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
-
+    // index 2 (Colours) opens a submenu — no sub-label
+    // index 3 (Minimal) is a toggle — self-manages
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(7).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(4).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -185,7 +111,96 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         new GraphSizeDelegate(),
         WatchUi.SLIDE_LEFT
       );
-    } else if (id == :background) {
+    } else if (id == :colours) {
+      WatchUi.pushView(
+        new ColoursMenu(),
+        new ColoursMenuDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :hrRange) {
+      WatchUi.pushView(
+        new HRRangeMenu(),
+        new HRRangeDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :testMode) {
+      // ToggleMenuItem flips its own state on tap; persist the new value.
+      var t = item as WatchUi.ToggleMenuItem;
+      Application.Properties.setValue("TestMode", t.isEnabled());
+    } else if (id == :minimal) {
+      var t = item as WatchUi.ToggleMenuItem;
+      Application.Properties.setValue("MinimalMode", t.isEnabled());
+    } else if (id == :reset) {
+      WatchUi.pushView(
+        new WatchUi.Confirmation("Reset all settings?"),
+        new ResetConfirmDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+}
+
+// Sub-menu grouping all color/palette settings.
+class ColoursMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Colours" });
+    addItem(new WatchUi.MenuItem("Background", "", :background, null));
+    addItem(new WatchUi.MenuItem("Graph Numbers", "", :graphNumbers, null));
+    addItem(new WatchUi.MenuItem("Time & Date", "", :timeColor, null));
+    addItem(
+      new WatchUi.IconMenuItem(
+        "Palette",
+        "",
+        :palette,
+        new PaletteStrip([0x000000] as Array<Number>),
+        null
+      )
+    );
+    refreshLabels();
+  }
+
+  function onShow() as Void {
+    Menu2.onShow();
+    refreshLabels();
+  }
+
+  function refreshLabels() as Void {
+    var bg = Application.Properties.getValue("BackgroundColor") as Number;
+    getItem(0).setSubLabel(bg == 0x000000 ? "black" : "white");
+
+    var gn = Application.Properties.getValue("GraphNumberColor") as Number;
+    var gnLabel;
+    if (gn == -2) {
+      gnLabel = "default";
+    } else if (gn == -3) {
+      gnLabel = "hidden";
+    } else {
+      gnLabel = "gray";
+    }
+    getItem(1).setSubLabel(gnLabel);
+
+    var tc = Application.Properties.getValue("TimeColor") as Number;
+    getItem(2).setSubLabel(tc == -2 ? "default" : "gray");
+
+    var palettes = getPalettes();
+    var idx = Application.Properties.getValue("PaletteIndex") as Number;
+    if (idx < 0 || idx >= palettes.size()) {
+      idx = 0;
+    }
+    var p = palettes[idx];
+    getItem(3).setSubLabel(p[:name]);
+    (getItem(3) as WatchUi.IconMenuItem).setIcon(new PaletteStrip(p[:colors]));
+  }
+}
+
+class ColoursMenuDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId();
+    if (id == :background) {
       WatchUi.pushView(
         new BackgroundColorMenu(),
         new BackgroundColorDelegate(),
@@ -207,25 +222,6 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
       WatchUi.pushView(
         new PaletteMenu(),
         new PaletteDelegate(),
-        WatchUi.SLIDE_LEFT
-      );
-    } else if (id == :hrRange) {
-      WatchUi.pushView(
-        new HRRangeMenu(),
-        new HRRangeDelegate(),
-        WatchUi.SLIDE_LEFT
-      );
-    } else if (id == :testMode) {
-      // ToggleMenuItem flips its own state on tap; persist the new value.
-      var t = item as WatchUi.ToggleMenuItem;
-      Application.Properties.setValue("TestMode", t.isEnabled());
-    } else if (id == :minimal) {
-      var t = item as WatchUi.ToggleMenuItem;
-      Application.Properties.setValue("MinimalMode", t.isEnabled());
-    } else if (id == :reset) {
-      WatchUi.pushView(
-        new WatchUi.Confirmation("Reset all settings?"),
-        new ResetConfirmDelegate(),
         WatchUi.SLIDE_LEFT
       );
     }
