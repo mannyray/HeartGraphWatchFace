@@ -1,5 +1,6 @@
 <properties>
 
     <property id="HeartGraphMinutes" type="number">3</property>
+    <property id="BackgroundColor" type="number">0x000000</property>
 
 </properties>

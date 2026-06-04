@@ -47,6 +47,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // battery icon coords
   var background_color = Gfx.COLOR_BLACK;
+  var foreground_color = Gfx.COLOR_WHITE;
   var batt_width_rect = 20;
   var batt_height_rect = 10;
   var batt_width_rect_small = 2;
@@ -122,6 +123,9 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // Update the view
   function onUpdate(dc as Dc) as Void {
+    var bg = Application.Properties.getValue("BackgroundColor") as Number;
+    background_color = bg;
+    foreground_color = bg == 0x000000 ? Gfx.COLOR_WHITE : Gfx.COLOR_BLACK;
     clearScreen(dc);
     var currentTime = Time.now();
     var currentHeartRate = getHeartRate();
@@ -268,6 +272,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // draw current date
   function drawDate(dc as Dc) as Void {
+    dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
     dc.drawText(
       date_x,
       date_y,
@@ -279,6 +284,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
 
   // draw current time
   function drawTime(dc as Dc) as Void {
+    dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
     dc.drawText(
       time_x,
       time_y,
@@ -400,7 +406,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
       //draw horizontal dashed lines through graph
       drawDashedLine(dc, leftX, leftX + graphWidth, upperY - val);
 
-      dc.setColor(Gfx.COLOR_BLACK, Gfx.COLOR_TRANSPARENT);
+      dc.setColor(foreground_color, Gfx.COLOR_TRANSPARENT);
 
       // draw numbers on graph to significy vertical range
       // between dashed lines
