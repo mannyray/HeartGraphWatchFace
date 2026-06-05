@@ -836,7 +836,7 @@ class HRRangeDelegate extends WatchUi.Menu2InputDelegate {
         new HRPresetMenu(
           "Step",
           "HRStep",
-          [5, 10, 15, 20] as Array<Number>
+          [5, 10] as Array<Number>
         ),
         new HRPresetDelegate("HRStep"),
         WatchUi.SLIDE_LEFT

@@ -5,7 +5,7 @@
 # Usage:
 #   ./build.sh                  builds per-device .prg files (fr955 + enduro3)
 #   ./build.sh fr955            single device .prg
-#   ./build.sh --export         builds bin/StressWatchFace.iq (store/beta bundle)
+#   ./build.sh --export         builds bin/HeartGraphWatchFace.iq (store/beta bundle)
 set -e
 cd "$(dirname "$0")"
 
@@ -19,9 +19,9 @@ mkdir -p bin
 
 if [ "$1" = "--export" ]; then
   echo "=== building .iq bundle for Connect IQ Store upload ==="
-  "$SDK/bin/monkeyc" -e -f monkey.jungle -o bin/StressWatchFace.iq -y "$KEY" -w
+  "$SDK/bin/monkeyc" -e -f monkey.jungle -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
   echo "=== done ==="
-  ls -la bin/StressWatchFace.iq
+  ls -la bin/HeartGraphWatchFace.iq
   exit 0
 fi
 
@@ -32,7 +32,7 @@ fi
 
 for D in "${DEVICES[@]}"; do
   echo "=== building for $D ==="
-  "$SDK/bin/monkeyc" -d "$D" -f monkey.jungle -o "bin/StressWatchFace-$D.prg" -y "$KEY" -w
+  "$SDK/bin/monkeyc" -d "$D" -f monkey.jungle -o "bin/HeartGraphWatchFace-$D.prg" -y "$KEY" -w
 done
 echo "=== done ==="
 ls -la bin/*.prg
