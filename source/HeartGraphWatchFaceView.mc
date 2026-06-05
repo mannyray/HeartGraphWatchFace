@@ -10,7 +10,7 @@ using Toybox.Time;
 using Toybox.Activity;
 using Toybox.Application as App;
 
-class MannyrayWatchFaceView extends WatchUi.WatchFace {
+class HeartGraphWatchFaceView extends WatchUi.WatchFace {
   var sleeping = true;
 
   // for heart graph
@@ -625,7 +625,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
   }
 }
 
-class MannyrayWatchDelegate extends WatchUi.WatchFaceDelegate {
+class HeartGraphWatchDelegate extends WatchUi.WatchFaceDelegate {
   function initialize() {
     WatchFaceDelegate.initialize();
   }

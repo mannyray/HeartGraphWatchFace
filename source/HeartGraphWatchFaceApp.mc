@@ -4,7 +4,7 @@ import Toybox.WatchUi;
 using Toybox.Application.Storage;
 using Toybox.Time;
 
-class MannyrayWatchFaceApp extends Application.AppBase {
+class HeartGraphWatchFaceApp extends Application.AppBase {
   var minutesToTrackHeartBeat;
   var dataDensityForHeartTrack;
   var graphTicks;
@@ -80,12 +80,12 @@ class MannyrayWatchFaceApp extends Application.AppBase {
     var buffer = buildHeartBuffer();
     if (Toybox.WatchUi.WatchFace has :onPartialUpdate) {
       return [
-        new MannyrayWatchFaceView(buffer, xAxisTitle, graphTicks),
-        new MannyrayWatchDelegate(),
+        new HeartGraphWatchFaceView(buffer, xAxisTitle, graphTicks),
+        new HeartGraphWatchDelegate(),
       ];
     } else {
       return [
-        new MannyrayWatchFaceView(buffer, xAxisTitle, graphTicks),
+        new HeartGraphWatchFaceView(buffer, xAxisTitle, graphTicks),
       ];
     }
   }
@@ -100,6 +100,6 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   }
 }
 
-function getApp() as MannyrayWatchFaceApp {
-  return Application.getApp() as MannyrayWatchFaceApp;
+function getApp() as HeartGraphWatchFaceApp {
+  return Application.getApp() as HeartGraphWatchFaceApp;
 }

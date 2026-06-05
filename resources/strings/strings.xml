@@ -1,6 +1,6 @@
 <strings>
 
-    <string id="AppName">MannyrayWatchFace</string>
+    <string id="AppName">HeartGraphWatchFace</string>
 
     <string id="HeartGraphMinutesTitle">Heart Rate Graph Duration</string>
     <string id="HeartGraphMinutes3">3 minutes</string>
