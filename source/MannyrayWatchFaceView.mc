@@ -55,7 +55,7 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
   var date_x, date_y;
 
   function initialize(
-    heartData as DataLinkedList,
+    heartData as CircularBuffer,
     xAxisTitle as String,
     graphTicks as Number
   ) {
@@ -96,8 +96,9 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     date_x = time_x;
     date_y = time_y - 20;
 
-    heartGraphLeftX = width_screen / 2 - (heartHistory.size() / 2).toNumber();
-    numberOnGraphOffset = ((heartHistory.size() * 7) / 8).toNumber();
+    // heartGraphLeftX and numberOnGraphOffset depend on the visible bar
+    // count, which now varies per tick based on HeartGraphMinutes — they
+    // are recomputed in onUpdate.
 
     setLayout(Rez.Layouts.WatchFace(dc));
   }
@@ -130,6 +131,29 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     hrStep = Application.Properties.getValue("HRStep") as Number;
     hrMax = Application.Properties.getValue("HRMax") as Number;
 
+    // The buffer always holds 10 min at 1-sec resolution; the user's
+    // chosen display mode just picks how much of the tail to show and
+    // (for the wider modes) downsamples to the visual bar count.
+    var displayMinutes =
+      Application.Properties.getValue("HeartGraphMinutes") as Number;
+    if (
+      displayMinutes != 3 && displayMinutes != 5 && displayMinutes != 10
+    ) {
+      displayMinutes = 3;
+    }
+    var displayBars;
+    if (displayMinutes == 3) {
+      displayBars = 181;
+    } else if (displayMinutes == 5) {
+      displayBars = 151;
+    } else {
+      displayBars = 201;
+    }
+    xAxisMessage = "last " + displayMinutes + " minutes";
+    graphDivisions = displayMinutes;
+    heartGraphLeftX = width_screen / 2 - displayBars / 2;
+    numberOnGraphOffset = (displayBars * 7) / 8;
+
     clearScreen(dc);
     var currentTime = Time.now();
     var currentHeartRate = getHeartRate();
@@ -142,15 +166,23 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
     if (testMode) {
       // Synthetic ramp covering the full palette range, so the user can
       // visually evaluate gradient transitions without waiting for live data.
-      var size = heartHistory.size();
-      data = new Array<Number>[size];
+      data = new Array<Number>[displayBars];
       var top = hrMin + palette.size() * hrStep;
-      for (var i = 0; i < size; i++) {
-        data[i] = hrMin + (i * (top - hrMin)) / size;
+      for (var i = 0; i < displayBars; i++) {
+        data[i] = hrMin + (i * (top - hrMin)) / displayBars;
       }
-      currentHeartRate = data[size - 1];
+      currentHeartRate = data[displayBars - 1];
     } else {
-      data = heartHistory.getOrderedArray(currentTime);
+      var full = heartHistory.getOrderedArray(currentTime);
+      // Buffer is 10 min at 1 sample / sec (601 entries). Take only the
+      // tail that covers the user's chosen window, then downsample to
+      // the visual bar count. All three modes downsample (3-min is ~1:1,
+      // 5-min averages every 2, 10-min averages every 3) — no upsampling
+      // needed because source samples ≥ target bars for every mode.
+      var tailSize = displayMinutes * 60 + 1;
+      if (tailSize > full.size()) { tailSize = full.size(); }
+      var tail = full.slice(full.size() - tailSize, full.size());
+      data = resampleToBars(tail, displayBars);
     }
 
     drawHeartRate(dc, currentHeartRate);
@@ -346,6 +378,43 @@ class MannyrayWatchFaceView extends WatchUi.WatchFace {
       dc.drawCircle(width_screen / 2, height_screen / 2, width_screen / 2);
       dc.setPenWidth(1);
     }
+  }
+
+  // Resample a 1-D series to a target bar count. Handles both downsampling
+  // (averages each bar's group of source samples) and upsampling (each
+  // output bar maps to a single source sample, producing visible "blocks"
+  // when target > source). Zero-valued samples — the no-reading sentinel —
+  // are skipped from averages so a single missing sample doesn't drag a
+  // bar down; if every sample in a bar's slice is zero, the output is 0
+  // (renders as a 1-px baseline bar = clean visible gap).
+  function resampleToBars(
+    source as Array<Number>,
+    targetCount as Number
+  ) as Array<Number> {
+    var srcSize = source.size();
+    if (srcSize == targetCount) { return source; }
+    var result = new Array<Number>[targetCount];
+    for (var i = 0; i < targetCount; i++) {
+      var startIdx = (i * srcSize) / targetCount;
+      var endIdx = ((i + 1) * srcSize) / targetCount;
+      if (endIdx > srcSize) { endIdx = srcSize; }
+      // Upsampling case: the [start, end) window collapses to a single
+      // source index. Pick it as-is.
+      if (endIdx <= startIdx) {
+        result[i] = startIdx < srcSize ? source[startIdx] : 0;
+      } else {
+        var sum = 0;
+        var count = 0;
+        for (var j = startIdx; j < endIdx; j++) {
+          if (source[j] > 0) {
+            sum += source[j];
+            count += 1;
+          }
+        }
+        result[i] = count > 0 ? sum / count : 0;
+      }
+    }
+    return result;
   }
 
   // Map an HR value into the active palette by dividing the range

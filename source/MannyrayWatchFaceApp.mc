@@ -21,50 +21,52 @@ class MannyrayWatchFaceApp extends Application.AppBase {
     // One-shot: copy shipped presets into user storage on first launch.
     maybeImportShippedPresets();
 
-    minutesToTrackHeartBeat =
+    // Single buffer covering the longest display window (10 min) at
+    // 1-second resolution = 601 entries. CircularBuffer stores values
+    // and timestamps in two flat Array<Number> (~8 bytes/entry) instead
+    // of an Array<DataPair> with nested Time.Moment objects, so 601
+    // entries fit comfortably in the watchFace memory budget.
+    minutesToTrackHeartBeat = 10;
+    dataDensityForHeartTrack = 601;
+    variableForHeartData = "heartData";
+
+    // Initial xAxisTitle / graphTicks are based on the user's stored
+    // setting just so the first paint looks right; the view re-derives
+    // them per tick from the current property value.
+    var displayMinutes =
       Application.Properties.getValue("HeartGraphMinutes") as Number;
-    // Guard against unexpected values from settings: fall back to 3 min.
-    if (
-      minutesToTrackHeartBeat != 3 &&
-      minutesToTrackHeartBeat != 5 &&
-      minutesToTrackHeartBeat != 10
-    ) {
-      minutesToTrackHeartBeat = 3;
+    if (displayMinutes != 3 && displayMinutes != 5 && displayMinutes != 10) {
+      displayMinutes = 3;
     }
-    if (minutesToTrackHeartBeat == 10) {
-      dataDensityForHeartTrack = 201;
-    } else if (minutesToTrackHeartBeat == 3) {
-      dataDensityForHeartTrack = 181;
-    } else if (minutesToTrackHeartBeat == 5) {
-      dataDensityForHeartTrack = 151;
-    }
-    xAxisTitle = "last " + minutesToTrackHeartBeat + " minutes";
-    graphTicks = minutesToTrackHeartBeat;
-    variableForHeartData = "heartData" + minutesToTrackHeartBeat;
+    xAxisTitle = "last " + displayMinutes + " minutes";
+    graphTicks = displayMinutes;
   }
 
-  function getCorrectInitialData() as Array<DataPair> {
-    var currentTime = Time.now();
-    var history = DataLinkedList.loadData(variableForHeartData);
-
-    // check that the freshest element of previously recorded data is not too stale (if it even exists)
-    // otherwise interpolate previous heart history that by default is sparsely recorded
-    if (
-      history == null ||
-      (
-        currentTime.subtract(history[history.size() - 1].time) as Time.Duration
-      ).greaterThan(new Time.Duration(allDataStaleLimit * 60))
-    ) {
-      history = getHeartHistory(minutesToTrackHeartBeat);
-    } else {
-      return history;
-    }
-    return DataLinkedList.interporalate(
-      currentTime.subtract(new Time.Duration(minutesToTrackHeartBeat * 60)),
+  // Build the heart-rate buffer at boot. Allocates an empty buffer of the
+  // configured capacity (no per-entry DataPair allocations), then seeds it
+  // — first trying the persisted storage and falling back to the system
+  // sensor history if storage is missing/stale/incompatible.
+  function buildHeartBuffer() as CircularBuffer {
+    var buffer = new CircularBuffer(
       minutesToTrackHeartBeat,
       dataDensityForHeartTrack,
-      history
+      variableForHeartData
     );
+    var currentTime = Time.now();
+    var loaded = false;
+    if (!buffer.isPersistedDataStale(currentTime, allDataStaleLimit * 60)) {
+      loaded = buffer.seedFromStorage();
+    }
+    if (!loaded) {
+      // Sparse sensor history is typically 30-50 entries — small enough
+      // that the DataPair allocation here is negligible vs. the 601-entry
+      // buffer.
+      var sparse = getHeartHistory(minutesToTrackHeartBeat);
+      var firstTime =
+        currentTime.subtract(new Time.Duration(minutesToTrackHeartBeat * 60));
+      buffer.seedFromSparseHistory(sparse, firstTime);
+    }
+    return buffer;
   }
 
   // onStart() is called on application start up
@@ -75,32 +77,15 @@ class MannyrayWatchFaceApp extends Application.AppBase {
 
   // Return the initial view of your application here
   function getInitialView() {
-    //return [ new MannyrayWatchFaceView(heartData) ] as Array<Views or InputDelegates>;
+    var buffer = buildHeartBuffer();
     if (Toybox.WatchUi.WatchFace has :onPartialUpdate) {
-      // onPartialUpdate exists
       return [
-        new MannyrayWatchFaceView(
-          new DataLinkedList(
-            minutesToTrackHeartBeat,
-            getCorrectInitialData(),
-            variableForHeartData
-          ),
-          xAxisTitle,
-          graphTicks
-        ),
+        new MannyrayWatchFaceView(buffer, xAxisTitle, graphTicks),
         new MannyrayWatchDelegate(),
       ];
     } else {
       return [
-        new MannyrayWatchFaceView(
-          new DataLinkedList(
-            minutesToTrackHeartBeat,
-            getCorrectInitialData(),
-            variableForHeartData
-          ),
-          xAxisTitle,
-          graphTicks
-        ),
+        new MannyrayWatchFaceView(buffer, xAxisTitle, graphTicks),
       ];
     }
   }
