@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Calm Night",
+    "values": {
+      "BackgroundColor": 0,
+      "TimeColor": 5592405,
+      "GraphNumberColor": -3,
+      "HRMin": 40,
+      "HRMax": 100,
+      "HRStep": 10,
+      "PaletteIndex": 0,
+      "GraphBandPixels": 10,
+      "HeartGraphMinutes": 3,
+      "MinimalMode": false
+    }
+  },
+  {
+    "name": "Vivid Wide",
+    "values": {
+      "BackgroundColor": 16777215,
+      "TimeColor": 5592405,
+      "GraphNumberColor": -2,
+      "HRMin": 40,
+      "HRMax": 120,
+      "HRStep": 10,
+      "PaletteIndex": 2,
+      "GraphBandPixels": 20,
+      "HeartGraphMinutes": 5,
+      "MinimalMode": false
+    }
+  },
+  {
+    "name": "Pure Graph",
+    "values": {
+      "BackgroundColor": 0,
+      "TimeColor": -2,
+      "GraphNumberColor": -3,
+      "HRMin": 40,
+      "HRMax": 110,
+      "HRStep": 10,
+      "PaletteIndex": 0,
+      "GraphBandPixels": 20,
+      "HeartGraphMinutes": 10,
+      "MinimalMode": true
+    }
+  }
+]

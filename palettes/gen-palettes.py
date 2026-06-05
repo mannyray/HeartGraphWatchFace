@@ -9,9 +9,10 @@ import json
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
-JSON_PATH = os.path.join(ROOT, "palettes.json")
-OUT_PATH = os.path.join(ROOT, "source", "PalettesGenerated.mc")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+JSON_PATH = os.path.join(SCRIPT_DIR, "palettes.json")
+OUT_PATH = os.path.join(PROJECT_ROOT, "source", "PalettesGenerated.mc")
 
 
 def needs_regen() -> bool:

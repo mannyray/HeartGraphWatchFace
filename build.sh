@@ -12,7 +12,8 @@ cd "$(dirname "$0")"
 SDK="$HOME/Library/Application Support/Garmin/ConnectIQ/Sdks/connectiq-sdk-mac-9.1.0-2026-03-09-6a872a80b"
 KEY="$HOME/Library/Application Support/Garmin/ConnectIQ/developer_key.der"
 
-python3 gen-palettes.py
+python3 palettes/gen-palettes.py
+python3 presets/gen-shipped.py
 
 mkdir -p bin
 

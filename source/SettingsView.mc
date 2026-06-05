@@ -271,7 +271,9 @@ class PresetsMenu extends WatchUi.Menu2 {
   }
 
   function buildItems() as Void {
-    addItem(new WatchUi.MenuItem("Default", "built-in", "Default", null));
+    // Sub-labels intentionally empty — the 12-char code is noisy for
+    // day-to-day use. Access it via the per-preset "View code" action.
+    addItem(new WatchUi.MenuItem("Default", null, "Default", null));
     var presets = getUserPresets();
     for (var i = 0; i < presets.size(); i++) {
       var p = presets[i] as Dictionary;
@@ -279,6 +281,7 @@ class PresetsMenu extends WatchUi.Menu2 {
       addItem(new WatchUi.MenuItem(name, null, name, null));
     }
     addItem(new WatchUi.MenuItem("+ Save current", null, :saveCurrent, null));
+    addItem(new WatchUi.MenuItem("+ Enter code", null, :enterCode, null));
   }
 }
 
@@ -295,8 +298,14 @@ class PresetsMenuDelegate extends WatchUi.Menu2InputDelegate {
         new SavePresetTextDelegate(),
         WatchUi.SLIDE_LEFT
       );
+    } else if (id == :enterCode) {
+      WatchUi.pushView(
+        new WatchUi.TextPicker(""),
+        new EnterCodeTextDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
     } else {
-      // Preset row tapped — open Apply/Delete sub-menu for that preset.
+      // Preset row tapped — open Apply/Update/Delete sub-menu for that preset.
       WatchUi.pushView(
         new PresetActionsMenu(id as String),
         new PresetActionsDelegate(id as String),
@@ -313,7 +322,13 @@ class PresetActionsMenu extends WatchUi.Menu2 {
     Menu2.initialize({ :title => name });
     presetName = name;
     addItem(new WatchUi.MenuItem("Apply", null, :apply, null));
+    addItem(new WatchUi.MenuItem("View code", null, :viewCode, null));
     if (!name.equals("Default")) {
+      // Update + Rename + Delete only make sense for user-saved presets.
+      addItem(
+        new WatchUi.MenuItem("Update", "to current", :update, null)
+      );
+      addItem(new WatchUi.MenuItem("Rename", null, :rename, null));
       addItem(new WatchUi.MenuItem("Delete", null, :delete, null));
     }
   }
@@ -335,6 +350,27 @@ class PresetActionsDelegate extends WatchUi.Menu2InputDelegate {
         applyPresetValues(values);
       }
       WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    } else if (id == :viewCode) {
+      var values = lookupPresetValues(presetName);
+      var code = values != null ? encodeSettings(values) : "?";
+      // Confirmation just doubles as a "display this text" dialog —
+      // either Yes/No dismisses without action.
+      WatchUi.pushView(
+        new WatchUi.Confirmation(code),
+        new DismissConfirmDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    } else if (id == :update) {
+      // Overwrite this preset with the watch face's current settings.
+      // savePresetWithName upserts by name.
+      savePresetWithName(presetName);
+      WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    } else if (id == :rename) {
+      WatchUi.pushView(
+        new WatchUi.TextPicker(presetName),
+        new RenamePresetTextDelegate(presetName),
+        WatchUi.SLIDE_LEFT
+      );
     } else if (id == :delete) {
       WatchUi.pushView(
         new WatchUi.Confirmation("Delete preset?"),
@@ -386,6 +422,91 @@ class SavePresetTextDelegate extends WatchUi.TextPickerDelegate {
   function onTextEntered(text as String, changed as Boolean) as Boolean {
     if (text != null && text.length() > 0) {
       savePresetWithName(text);
+    }
+    return true;
+  }
+
+  function onCancel() as Boolean {
+    return true;
+  }
+}
+
+// Receives a typed-in shareable code, decodes it, and if valid prompts
+// for a name to save it under.
+class EnterCodeTextDelegate extends WatchUi.TextPickerDelegate {
+  function initialize() {
+    TextPickerDelegate.initialize();
+  }
+
+  function onTextEntered(text as String, changed as Boolean) as Boolean {
+    var decoded = decodeSettings(text);
+    if (decoded == null) {
+      WatchUi.pushView(
+        new WatchUi.Confirmation("Invalid code"),
+        new DismissConfirmDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+      return true;
+    }
+    WatchUi.pushView(
+      new WatchUi.TextPicker(""),
+      new SaveCodeNameDelegate(decoded),
+      WatchUi.SLIDE_LEFT
+    );
+    return true;
+  }
+
+  function onCancel() as Boolean {
+    return true;
+  }
+}
+
+// Garmin Confirmation has Yes/No buttons; this delegate just dismisses
+// without action — used for info-only dialogs ("Invalid code", "View code").
+class DismissConfirmDelegate extends WatchUi.ConfirmationDelegate {
+  function initialize() {
+    ConfirmationDelegate.initialize();
+  }
+
+  function onResponse(response as WatchUi.Confirm) as Boolean {
+    return true;
+  }
+}
+
+class RenamePresetTextDelegate extends WatchUi.TextPickerDelegate {
+  var oldName as String;
+
+  function initialize(name as String) {
+    TextPickerDelegate.initialize();
+    oldName = name;
+  }
+
+  function onTextEntered(text as String, changed as Boolean) as Boolean {
+    if (text != null && renamePreset(oldName, text)) {
+      // Returning true pops the TextPicker; pop the PresetActionsMenu too
+      // so the user lands on PresetsMenu with the new name visible.
+      WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    }
+    return true;
+  }
+
+  function onCancel() as Boolean {
+    return true;
+  }
+}
+
+// Asks for a name to save a previously-decoded settings dict under.
+class SaveCodeNameDelegate extends WatchUi.TextPickerDelegate {
+  var values as Dictionary;
+
+  function initialize(decodedValues as Dictionary) {
+    TextPickerDelegate.initialize();
+    values = decodedValues;
+  }
+
+  function onTextEntered(text as String, changed as Boolean) as Boolean {
+    if (text != null && text.length() > 0) {
+      savePresetWithNameAndValues(text, values);
     }
     return true;
   }

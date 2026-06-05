@@ -18,6 +18,9 @@ class MannyrayWatchFaceApp extends Application.AppBase {
   function initialize() {
     AppBase.initialize();
 
+    // One-shot: copy shipped presets into user storage on first launch.
+    maybeImportShippedPresets();
+
     minutesToTrackHeartBeat =
       Application.Properties.getValue("HeartGraphMinutes") as Number;
     // Guard against unexpected values from settings: fall back to 3 min.
