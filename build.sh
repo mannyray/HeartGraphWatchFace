@@ -33,7 +33,10 @@ mkdir -p bin
 
 if [ "$1" = "--export" ]; then
   echo "=== building .iq bundle for Connect IQ Store upload ==="
-  "$SDK/bin/monkeyc" -e -f monkey.jungle -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
+  # -r = release mode: drops (:debug)-annotated symbols (e.g. Test Mode's
+  # synthetic-ramp generator and its toggle), keeping the store binary
+  # clean of dev-only affordances.
+  "$SDK/bin/monkeyc" -e -r -f monkey.jungle -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
   echo "=== done ==="
   ls -la bin/HeartGraphWatchFace.iq
   exit 0

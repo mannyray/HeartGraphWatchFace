@@ -145,7 +145,7 @@ class GraphMenuDelegate extends WatchUi.Menu2InputDelegate {
   }
 }
 
-// Modes submenu — Minimal + Test Mode toggles grouped together.
+// Modes submenu — Minimal toggle (+ Test Mode in debug builds only).
 class ModesMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Modes" });
@@ -159,6 +159,15 @@ class ModesMenu extends WatchUi.Menu2 {
         null
       )
     );
+    // Test Mode is dev-only: addTestModeToggle is (:debug)-annotated so it
+    // doesn't compile in release builds (./build.sh --export passes -r).
+    if (self has :addTestModeToggle) {
+      addTestModeToggle();
+    }
+  }
+
+  (:debug)
+  function addTestModeToggle() as Void {
     var testMode = Application.Properties.getValue("TestMode") as Boolean;
     addItem(
       new WatchUi.ToggleMenuItem(
@@ -182,9 +191,14 @@ class ModesMenuDelegate extends WatchUi.Menu2InputDelegate {
     var t = item as WatchUi.ToggleMenuItem;
     if (id == :minimal) {
       Application.Properties.setValue("MinimalMode", t.isEnabled());
-    } else if (id == :testMode) {
-      Application.Properties.setValue("TestMode", t.isEnabled());
+    } else if (self has :handleTestModeToggle && id == :testMode) {
+      handleTestModeToggle(t);
     }
+  }
+
+  (:debug)
+  function handleTestModeToggle(t as WatchUi.ToggleMenuItem) as Void {
+    Application.Properties.setValue("TestMode", t.isEnabled());
   }
 }
 

@@ -161,18 +161,18 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
     // Always record real HR so test mode doesn't lose history when toggled off.
     heartHistory.addData(currentHeartRate, currentTime);
 
-    var testMode = Application.Properties.getValue("TestMode") as Boolean;
-    var data;
-    if (testMode) {
-      // Synthetic ramp covering the full palette range, so the user can
-      // visually evaluate gradient transitions without waiting for live data.
-      data = new Array<Number>[displayBars];
-      var top = hrMin + palette.size() * hrStep;
-      for (var i = 0; i < displayBars; i++) {
-        data[i] = hrMin + (i * (top - hrMin)) / displayBars;
+    // maybeBuildSyntheticRamp is (:debug)-annotated — doesn't compile in
+    // release builds, so the synthetic-ramp code path is entirely absent
+    // from the store binary. In debug builds, it reads the TestMode
+    // property and either returns a synthetic ramp array or null.
+    var data = null;
+    if (self has :maybeBuildSyntheticRamp) {
+      data = maybeBuildSyntheticRamp(displayBars);
+      if (data != null) {
+        currentHeartRate = data[displayBars - 1];
       }
-      currentHeartRate = data[displayBars - 1];
-    } else {
+    }
+    if (data == null) {
       var full = heartHistory.getOrderedArray(currentTime);
       // Buffer is 10 min at 1 sample / sec (601 entries). Take only the
       // tail that covers the user's chosen window, then downsample to
@@ -378,6 +378,24 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
       dc.drawCircle(width_screen / 2, height_screen / 2, width_screen / 2);
       dc.setPenWidth(1);
     }
+  }
+
+  // Dev-only synthetic ramp generator. Reads the TestMode property; if
+  // true, returns a `targetCount`-long array spanning the full palette
+  // range (so the user can visually evaluate gradient transitions
+  // without waiting for live HR data). Returns null if test mode is off.
+  // (:debug) — excluded from release builds, so the Test Mode code path
+  // never makes it into the store binary.
+  (:debug)
+  function maybeBuildSyntheticRamp(targetCount as Number) as Array<Number> or Null {
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    if (testMode != true) { return null; }
+    var data = new Array<Number>[targetCount];
+    var top = hrMin + palette.size() * hrStep;
+    for (var i = 0; i < targetCount; i++) {
+      data[i] = hrMin + (i * (top - hrMin)) / targetCount;
+    }
+    return data;
   }
 
   // Resample a 1-D series to a target bar count. Handles both downsampling

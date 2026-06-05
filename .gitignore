@@ -2,3 +2,4 @@ bin/
 *.DS_Store
 source/PalettesGenerated.mc
 source/ShippedPresetsGenerated.mc
+source/VersionGenerated.mc
