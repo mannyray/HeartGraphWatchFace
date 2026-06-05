@@ -15,6 +15,7 @@ class SettingsMenu extends WatchUi.Menu2 {
     addItem(new WatchUi.MenuItem("Graph", null, :graph, null));
     addItem(new WatchUi.MenuItem("Modes", null, :modes, null));
     addItem(new WatchUi.MenuItem("Reset", "to defaults", :reset, null));
+    addItem(new WatchUi.MenuItem("About", APP_VERSION, :about, null));
   }
   // No refreshLabels — none of the top-level rows show dynamic sub-labels.
 }
@@ -56,7 +57,33 @@ class SettingsMenuDelegate extends WatchUi.Menu2InputDelegate {
         new ResetConfirmDelegate(),
         WatchUi.SLIDE_LEFT
       );
+    } else if (id == :about) {
+      WatchUi.pushView(
+        new AboutMenu(),
+        new AboutDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
     }
+  }
+}
+
+// Read-only About view. Info rows (no actions); back button pops.
+class AboutMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "About" });
+    addItem(new WatchUi.MenuItem("Version", APP_VERSION, :version, null));
+    addItem(new WatchUi.MenuItem("Commit", APP_COMMIT, :commit, null));
+    addItem(new WatchUi.MenuItem("GitHub", APP_REPO, :github, null));
+  }
+}
+
+class AboutDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    // Informational rows — no action on tap. Back button exits.
   }
 }
 

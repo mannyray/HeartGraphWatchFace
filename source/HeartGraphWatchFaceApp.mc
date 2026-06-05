@@ -4,6 +4,10 @@ import Toybox.WatchUi;
 using Toybox.Application.Storage;
 using Toybox.Time;
 
+// Surfaced in Settings → About. Bump on store releases.
+const APP_VERSION = "1.0.0";
+const APP_REPO = "mannyray/HeartGraphWatchFace";
+
 class HeartGraphWatchFaceApp extends Application.AppBase {
   var minutesToTrackHeartBeat;
   var dataDensityForHeartTrack;
