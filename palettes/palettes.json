@@ -1,6 +1,7 @@
 [
   {
     "name": "Default",
+    "category": "Multi Colour",
     "colors": [
       "0x00AA00",
       "0x55AA00",
@@ -13,6 +14,7 @@
   },
   {
     "name": "Cool",
+    "category": "Multi Colour",
     "colors": [
       "0x0000AA",
       "0x0055AA",
@@ -24,6 +26,7 @@
   },
   {
     "name": "Warning 8",
+    "category": "Multi Colour",
     "colors": [
       "0x00AA00",
       "0x00FF00",
@@ -37,6 +40,7 @@
   },
   {
     "name": "Hard 3",
+    "category": "Multi Colour",
     "colors": [
       "0x00AA00",
       "0xFFAA00",
@@ -45,11 +49,103 @@
   },
   {
     "name": "Hard 4",
+    "category": "Multi Colour",
     "colors": [
       "0x00AA55",
       "0xAAAA55",
       "0xFFAA55",
       "0xFF0000"
+    ]
+  },
+  {
+    "name": "White",
+    "category": "Single Colour",
+    "colors": [
+      "0xFFFFFF",
+      "0xFFFFFF",
+      "0xFFFFFF",
+      "0xFFFFFF",
+      "0xFFFFFF",
+      "0xFFFFFF",
+      "0xFFFFFF"
+    ]
+  },
+  {
+    "name": "Black",
+    "category": "Single Colour",
+    "colors": [
+      "0x000000",
+      "0x000000",
+      "0x000000",
+      "0x000000",
+      "0x000000",
+      "0x000000",
+      "0x000000"
+    ]
+  },
+  {
+    "name": "Red",
+    "category": "Single Colour",
+    "colors": [
+      "0xFF0000",
+      "0xFF0000",
+      "0xFF0000",
+      "0xFF0000",
+      "0xFF0000",
+      "0xFF0000",
+      "0xFF0000"
+    ]
+  },
+  {
+    "name": "Green",
+    "category": "Single Colour",
+    "colors": [
+      "0x00AA00",
+      "0x00AA00",
+      "0x00AA00",
+      "0x00AA00",
+      "0x00AA00",
+      "0x00AA00",
+      "0x00AA00"
+    ]
+  },
+  {
+    "name": "Pink",
+    "category": "Single Colour",
+    "colors": [
+      "0xFF00AA",
+      "0xFF00AA",
+      "0xFF00AA",
+      "0xFF00AA",
+      "0xFF00AA",
+      "0xFF00AA",
+      "0xFF00AA"
+    ]
+  },
+  {
+    "name": "Yellow",
+    "category": "Single Colour",
+    "colors": [
+      "0xFFFF00",
+      "0xFFFF00",
+      "0xFFFF00",
+      "0xFFFF00",
+      "0xFFFF00",
+      "0xFFFF00",
+      "0xFFFF00"
+    ]
+  },
+  {
+    "name": "Blue",
+    "category": "Single Colour",
+    "colors": [
+      "0x0000AA",
+      "0x0000AA",
+      "0x0000AA",
+      "0x0000AA",
+      "0x0000AA",
+      "0x0000AA",
+      "0x0000AA"
     ]
   }
 ]

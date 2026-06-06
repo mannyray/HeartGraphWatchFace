@@ -44,9 +44,15 @@ def main() -> int:
     ]
     for i, p in enumerate(palettes):
         name = p["name"].replace('"', '\\"')
+        # Default category preserves backwards compat for any palettes.json
+        # that pre-dates the categorisation feature.
+        category = p.get("category", "Multi Colour").replace('"', '\\"')
         colors = ", ".join(p["colors"])
         comma = "," if i < len(palettes) - 1 else ""
-        lines.append(f"    {{ :name => \"{name}\", :colors => [{colors}] }}{comma}")
+        lines.append(
+            f"    {{ :name => \"{name}\", :category => \"{category}\", "
+            f":colors => [{colors}] }}{comma}"
+        )
     lines += [
         "  ];",
         "}",

@@ -10,6 +10,7 @@
       "HRStep": 10,
       "PaletteIndex": 0,
       "GraphBandPixels": 10,
+      "ShowGraphAxis": true,
       "HeartGraphMinutes": 3,
       "MinimalMode": false
     }
@@ -25,6 +26,7 @@
       "HRStep": 10,
       "PaletteIndex": 2,
       "GraphBandPixels": 20,
+      "ShowGraphAxis": true,
       "HeartGraphMinutes": 5,
       "MinimalMode": false
     }
@@ -40,6 +42,7 @@
       "HRStep": 10,
       "PaletteIndex": 0,
       "GraphBandPixels": 20,
+      "ShowGraphAxis": false,
       "HeartGraphMinutes": 10,
       "MinimalMode": true
     }

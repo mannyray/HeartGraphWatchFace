@@ -22,6 +22,7 @@ KEYS = [
     "HRStep",
     "PaletteIndex",
     "GraphBandPixels",
+    "ShowGraphAxis",
     "HeartGraphMinutes",
     "MinimalMode",
 ]
