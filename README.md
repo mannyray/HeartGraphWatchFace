@@ -14,9 +14,9 @@ Furthermore, the human body is very adaptable and one can learn a lot more about
 
 I believe the correct thought pattern of using this watch is along the lines of 'wow interesting.... my heart rate is in the 80s and Im just sitting here while last time I did that it was in the 60s ...what changed? Oh yeah Im stressin' about that exam... _interesting_ ...why am I stressin'?' - Even if you heart rate is 'too high' then you shouldn't worry too much about it due to "Matthew 6:27". I believe you should also avoid the thought process of "oh wow low heart rate huh? Yeah im in the 'zone' and I'm awesome!" as you will start idolizing your health so that when you encounter a 'bump in the road' your heart rate might spiral away further than necessary.
 
-Does this watch app guarantee certain medical results? Outside of placebo - no. It did help me see how a runaway thought process can jack my heart rate from 50s all the way to the 80s and when I catch myself back down to the 50s all in the span of 30 seconds. This awareness helped me do my best to be aware of thoughts and stresses and not let them run through my mind too much. Overtime, I did notice my average heart rate trend downwards over the course of a year, but this involves more introspection of the soul than just staring at a watch.
+Does this watch app guarantee certain medical results? Outside of placebo - no. It did help me see how a runaway thought process can jack my heart rate from 50s all the way to the 80s and when I catch myself back down to the 50s all in the span of 30 seconds. This awareness helped me do my best to be aware of thoughts and stresses and not let them run through my mind too much. Overtime, I did notice my average heart rate trend downwards over the course of a year, but this involves more introspection of the soul than just staring at a watch. Recently I noticed heart rate during walking can drop to the mid 80s whereas before it was low 100s (reminds me of [zone 2 training](https://www.youtube.com/watch?v=-6PDBVRkCKc) ).
 
-Furthermore, I must give a strict warning here as this is not for everyone - neurofeedback style techniques can go [very wrong](https://www.reddit.com/r/Neurofeedback/comments/yyyhpg/neurofeedback_destroyed_my_life/) for people and I presume especially so for those that tend to get over anxious over metrics - see your doctor first. There is a great cultural sickness out there of over optimizing health and I do not wish this watch to be part of that (see [here](https://elliotpaisley.substack.com/p/chris-williamson-is-a-slave) for a comedic display of this trend).
+Furthermore, I must give a strict warning here as this is not for everyone - neurofeedback style techniques can go [very wrong](https://www.reddit.com/r/Neurofeedback/comments/yyyhpg/neurofeedback_destroyed_my_life/) for people and I presume especially so for those that tend to get over anxious over metrics - see your doctor first. There is a great cultural sickness out there of over optimizing health and I do not wish this watch to be part of that (see [here](https://elliotpaisley.substack.com/p/chris-williamson-is-a-slave) for a comedic display of this trend. I also hinted about this concern the older version of this repository with my article [here](https://szonov.com/programming/2023/12/25/the-bionicle-man/)).
 
 In conclusion... By wearing this watch face for many days and months you will have an understanding of how your heart rate can vary. You will learn how your heart can accelerate or calm down. You will observe the impact of thoughts and stress on your heart rate. Even if you think you are calm, then your heart rate may not reflect that. This contrast will encourage you to observe the subtleties in your body and be more self aware. You will learn differences between sitting, standing, walking and that resting heart rate isn't just for sleeping but for sitting or working too... How's that for an informercial?
 
@@ -39,7 +39,7 @@ The watch face has a lot of various customizations for the user to account for t
  <figure>
   <img src="assets/3_5_10.gif" alt="combinations">
 </figure>
- - Remove the time completely from your watch so it is just the heart rate graph.
+ - Remove the time completely from your watch so it is just the heart rate graph ( the gap seen occurs when accessing the watch face's setting page during which the heart data is not being recorded - not a bug!)
  <figure>
   <img src="assets/time_no_time.gif" alt="combinations">
 </figure>
@@ -54,7 +54,7 @@ The watch face has a lot of various customizations for the user to account for t
 </figure>
 
 
-- Some of the combinations come prebuilt on the watch and you are free to use them by selecting them in the "Presets" option of the settings page. You can also add your own custom presets and each preset can be described by a specific 'code' which you can reuse on other garmin watches or share them with friends who like your new view!
+- Some of the combinations come prebuilt on the watch and you are free to use them by selecting them in the "Presets" option of the settings page. I specifically found it beneficial to have a separate 'calmer' mode to zoom in on your heart beat when you know it will be in a more restricted range as you resting and not moving around but still want to catch the small peaks and valleys in your heart beat. You can also add your own custom presets and each preset can be described by a specific 'code' which you can reuse on other garmin watches or share them with friends who like your new view!
 
 <figure>
   <img src="assets/IMG_0198.gif" alt="combinations">
@@ -65,7 +65,7 @@ The watch forces 'military' style time on the user as all other time formats are
 
 ## How To Install 
 
-The watch face app is available on the Garmin marketplace. TODO: what watches this is restricted for -> maybe a search on how to find it.
+The watch face app is available on the Garmin marketplace. TODO: link the app on the store once it is reviewed
 
 ### Building and installing from source
 
