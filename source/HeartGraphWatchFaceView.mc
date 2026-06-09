@@ -161,29 +161,28 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
     // Always record real HR so test mode doesn't lose history when toggled off.
     heartHistory.addData(currentHeartRate, currentTime);
 
-    // maybeBuildSyntheticRamp is (:debug)-annotated — doesn't compile in
-    // release builds, so the synthetic-ramp code path is entirely absent
-    // from the store binary. In debug builds, it reads the TestMode
-    // property and either returns a synthetic ramp array or null.
-    var data = null;
-    if (self has :maybeBuildSyntheticRamp) {
-      data = maybeBuildSyntheticRamp(displayBars);
-      if (data != null) {
-        currentHeartRate = data[displayBars - 1];
-      }
+    // Source buffer is 601 samples at 1Hz. In test mode the same 601-
+    // entry shape comes from a synthetic scenario (and rotates over
+    // time so the curve scrolls + loops every 10 min). Either way the
+    // tail slice + resample step below is identical.
+    var full = null;
+    if (self has :maybeBuildSyntheticHR) {
+      full = maybeBuildSyntheticHR();
     }
-    if (data == null) {
-      var full = heartHistory.getOrderedArray(currentTime);
-      // Buffer is 10 min at 1 sample / sec (601 entries). Take only the
-      // tail that covers the user's chosen window, then downsample to
-      // the visual bar count. All three modes downsample (3-min is ~1:1,
-      // 5-min averages every 2, 10-min averages every 3) — no upsampling
-      // needed because source samples ≥ target bars for every mode.
-      var tailSize = displayMinutes * 60 + 1;
-      if (tailSize > full.size()) { tailSize = full.size(); }
-      var tail = full.slice(full.size() - tailSize, full.size());
-      data = resampleToBars(tail, displayBars);
+    if (full == null) {
+      full = heartHistory.getOrderedArray(currentTime);
+    } else {
+      currentHeartRate = full[full.size() - 1];
     }
+    // Take only the tail that covers the user's chosen window, then
+    // downsample to the visual bar count. All three modes downsample
+    // (3-min is ~1:1, 5-min averages every 2, 10-min averages every 3)
+    // — no upsampling needed because source samples ≥ target bars for
+    // every mode.
+    var tailSize = displayMinutes * 60 + 1;
+    if (tailSize > full.size()) { tailSize = full.size(); }
+    var tail = full.slice(full.size() - tailSize, full.size());
+    var data = resampleToBars(tail, displayBars);
 
     drawHeartRate(dc, currentHeartRate);
     drawGraph(dc, heartGraphLeftX, heartGraphBottomY, data.size(), data);
@@ -390,32 +389,64 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
     }
   }
 
-  // Dev-only synthetic ramp generator. Reads the TestMode property; if
-  // true, returns a `targetCount`-long array spanning the full palette
-  // range (so the user can visually evaluate gradient transitions
-  // without waiting for live HR data). Returns null if test mode is off.
-  // (:debug) — excluded from release builds, so the Test Mode code path
-  // never makes it into the store binary.
   // Dev-only clock override. Returns [hour, minute] (13:37) when TestMode
-  // is on, else null. Paired with `(:debug)` so it's absent from release
-  // builds — production reads the real clock unconditionally.
-  (:debug)
+  // is on, else null. Paired with `(:dev_only)` so it's stripped from
+  // store builds via store.jungle but kept in beta sideloads. Production
+  // reads the real clock unconditionally.
+  (:dev_only)
   function testModeClockOverride() as Array<Number> or Null {
     var testMode = Application.Properties.getValue("TestMode") as Boolean;
     if (testMode != true) { return null; }
     return [13, 37];
   }
 
-  (:debug)
-  function maybeBuildSyntheticRamp(targetCount as Number) as Array<Number> or Null {
+  // Cached scenario buffer (601 entries) and the input parameters that
+  // generated it. Recomputed only when scenario index or HR config
+  // changes — generation is ~601 iterations of cheap arithmetic, fine
+  // to redo occasionally but wasteful per tick.
+  var _scenarioCache as Array<Number> or Null = null;
+  var _scenarioKey as Array<Number> or Null = null;
+
+  // Build (or fetch from cache) the full 601-entry buffer for the
+  // active scenario, then rotate it so the LAST entry is "now". Time
+  // advances using Time.now().value() % 601, so the synthetic curve
+  // loops every 10 minutes. Returns null when test mode is off.
+  (:dev_only)
+  function maybeBuildSyntheticHR() as Array<Number> or Null {
     var testMode = Application.Properties.getValue("TestMode") as Boolean;
     if (testMode != true) { return null; }
-    var data = new Array<Number>[targetCount];
-    var top = hrMin + palette.size() * hrStep;
-    for (var i = 0; i < targetCount; i++) {
-      data[i] = hrMin + (i * (top - hrMin)) / targetCount;
+    var idx = Application.Properties.getValue("TestScenarioIndex") as Number;
+    var names = getTestScenarioNames();
+    if (idx < 0 || idx >= names.size()) { idx = 0; }
+
+    var paletteSize = palette.size();
+    var key = [idx, hrMin, paletteSize, hrStep] as Array<Number>;
+    if (_scenarioCache == null
+        || _scenarioKey == null
+        || !_keysEqual(_scenarioKey, key)) {
+      _scenarioCache = buildTestScenarioData(idx, 601, hrMin, paletteSize, hrStep);
+      _scenarioKey = key;
     }
-    return data;
+    var full = _scenarioCache;
+    var n = full.size();
+    var now = Time.now().value() % n;
+    var result = new Array<Number>[n];
+    // result[n-1] should equal full[now]; offset = (now + 1) wraps
+    // correctly for any now in [0, n).
+    var offset = (now + 1) % n;
+    for (var i = 0; i < n; i++) {
+      result[i] = full[(offset + i) % n];
+    }
+    return result;
+  }
+
+  (:dev_only)
+  function _keysEqual(a as Array<Number>, b as Array<Number>) as Boolean {
+    if (a.size() != b.size()) { return false; }
+    for (var i = 0; i < a.size(); i++) {
+      if (a[i] != b[i]) { return false; }
+    }
+    return true;
   }
 
   // Resample a 1-D series to a target bar count. Handles both downsampling

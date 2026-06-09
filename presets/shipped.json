@@ -1,6 +1,41 @@
 [
   {
-    "name": "Calm Night",
+    "name": "Bluedaboodee",
+    "_code": "v1.0-5D49B-A",
+    "values": {
+      "BackgroundColor": 16777215,
+      "TimeColor": 5592405,
+      "GraphNumberColor": -3,
+      "HRMin": 40,
+      "HRMax": 100,
+      "HRStep": 10,
+      "PaletteIndex": 11,
+      "GraphBandPixels": 10,
+      "ShowGraphAxis": false,
+      "HeartGraphMinutes": 5,
+      "MinimalMode": false
+    }
+  },
+  {
+    "name": "RestRangeTrack",
+    "_code": "v1.0-J0188-3",
+    "values": {
+      "BackgroundColor": 0,
+      "TimeColor": 5592405,
+      "GraphNumberColor": -2,
+      "HRMin": 40,
+      "HRMax": 70,
+      "HRStep": 5,
+      "PaletteIndex": 0,
+      "GraphBandPixels": 20,
+      "ShowGraphAxis": true,
+      "HeartGraphMinutes": 3,
+      "MinimalMode": true
+    }
+  },
+  {
+    "name": "CoolVibes",
+    "_code": "v1.0-05498-T",
     "values": {
       "BackgroundColor": 0,
       "TimeColor": 5592405,
@@ -8,43 +43,11 @@
       "HRMin": 40,
       "HRMax": 100,
       "HRStep": 10,
-      "PaletteIndex": 0,
+      "PaletteIndex": 1,
       "GraphBandPixels": 10,
       "ShowGraphAxis": true,
       "HeartGraphMinutes": 3,
       "MinimalMode": false
-    }
-  },
-  {
-    "name": "Vivid Wide",
-    "values": {
-      "BackgroundColor": 16777215,
-      "TimeColor": 5592405,
-      "GraphNumberColor": -2,
-      "HRMin": 40,
-      "HRMax": 120,
-      "HRStep": 10,
-      "PaletteIndex": 2,
-      "GraphBandPixels": 20,
-      "ShowGraphAxis": true,
-      "HeartGraphMinutes": 5,
-      "MinimalMode": false
-    }
-  },
-  {
-    "name": "Pure Graph",
-    "values": {
-      "BackgroundColor": 0,
-      "TimeColor": -2,
-      "GraphNumberColor": -3,
-      "HRMin": 40,
-      "HRMax": 110,
-      "HRStep": 10,
-      "PaletteIndex": 0,
-      "GraphBandPixels": 20,
-      "ShowGraphAxis": false,
-      "HeartGraphMinutes": 10,
-      "MinimalMode": true
     }
   }
 ]

@@ -211,7 +211,7 @@ class GraphMenuDelegate extends WatchUi.Menu2InputDelegate {
   }
 }
 
-// Modes submenu — Minimal toggle (+ Test Mode in debug builds only).
+// Modes submenu — Minimal toggle (+ Test Data picker in debug builds only).
 class ModesMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Modes" });
@@ -225,25 +225,39 @@ class ModesMenu extends WatchUi.Menu2 {
         null
       )
     );
-    // Test Mode is dev-only: addTestModeToggle is (:debug)-annotated so it
+    // Test Data is dev-only: addTestDataRow is (:dev_only)-annotated so it
     // doesn't compile in release builds (./build.sh --export passes -r).
-    if (self has :addTestModeToggle) {
-      addTestModeToggle();
+    if (self has :addTestDataRow) {
+      addTestDataRow();
     }
   }
 
-  (:debug)
-  function addTestModeToggle() as Void {
+  function onShow() as Void {
+    Menu2.onShow();
+    if (self has :refreshTestDataLabel) {
+      refreshTestDataLabel();
+    }
+  }
+
+  (:dev_only)
+  function addTestDataRow() as Void {
+    addItem(new WatchUi.MenuItem("Test Data", "", :testData, null));
+    refreshTestDataLabel();
+  }
+
+  (:dev_only)
+  function refreshTestDataLabel() as Void {
+    var n = getItem(1);
+    if (n == null) { return; }
     var testMode = Application.Properties.getValue("TestMode") as Boolean;
-    addItem(
-      new WatchUi.ToggleMenuItem(
-        "Test Mode",
-        "synthetic ramp",
-        :testMode,
-        testMode,
-        null
-      )
-    );
+    if (testMode != true) {
+      n.setSubLabel("off");
+      return;
+    }
+    var idx = Application.Properties.getValue("TestScenarioIndex") as Number;
+    var names = getTestScenarioNames();
+    if (idx < 0 || idx >= names.size()) { idx = 0; }
+    n.setSubLabel(names[idx]);
   }
 }
 
@@ -254,17 +268,60 @@ class ModesMenuDelegate extends WatchUi.Menu2InputDelegate {
 
   function onSelect(item as WatchUi.MenuItem) as Void {
     var id = item.getId();
-    var t = item as WatchUi.ToggleMenuItem;
     if (id == :minimal) {
+      var t = item as WatchUi.ToggleMenuItem;
       Application.Properties.setValue("MinimalMode", t.isEnabled());
-    } else if (self has :handleTestModeToggle && id == :testMode) {
-      handleTestModeToggle(t);
+    } else if (self has :openTestDataPicker && id == :testData) {
+      openTestDataPicker();
     }
   }
 
-  (:debug)
-  function handleTestModeToggle(t as WatchUi.ToggleMenuItem) as Void {
-    Application.Properties.setValue("TestMode", t.isEnabled());
+  (:dev_only)
+  function openTestDataPicker() as Void {
+    WatchUi.pushView(
+      new TestDataMenu(),
+      new TestDataDelegate(),
+      WatchUi.SLIDE_LEFT
+    );
+  }
+}
+
+// Test Data picker — "Off" plus one row per scenario in
+// getTestScenarioNames(). Picking a scenario sets TestMode=true and
+// TestScenarioIndex; picking Off sets TestMode=false (scenario index
+// stays so it's the default next time you turn test data back on).
+(:dev_only)
+class TestDataMenu extends WatchUi.Menu2 {
+  function initialize() {
+    Menu2.initialize({ :title => "Test Data" });
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    var currentIdx = Application.Properties.getValue("TestScenarioIndex") as Number;
+    addItem(new WatchUi.MenuItem(
+      "Off", testMode != true ? "current" : null, -1, null
+    ));
+    var names = getTestScenarioNames();
+    for (var i = 0; i < names.size(); i++) {
+      var sub = (testMode == true && i == currentIdx) ? "current" : null;
+      addItem(new WatchUi.MenuItem(names[i], sub, i, null));
+    }
+  }
+}
+
+(:dev_only)
+class TestDataDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var id = item.getId() as Number;
+    if (id == -1) {
+      Application.Properties.setValue("TestMode", false);
+    } else {
+      Application.Properties.setValue("TestScenarioIndex", id);
+      Application.Properties.setValue("TestMode", true);
+    }
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
   }
 }
 
@@ -642,6 +699,7 @@ class ResetConfirmDelegate extends WatchUi.ConfirmationDelegate {
       Application.Properties.setValue("ShowGraphAxis", true);
       Application.Properties.setValue("HeartGraphMinutes", 3);
       Application.Properties.setValue("TestMode", false);
+      Application.Properties.setValue("TestScenarioIndex", 0);
     }
     return true;
   }

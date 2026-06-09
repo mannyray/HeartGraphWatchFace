@@ -3,14 +3,66 @@
 # then invokes monkeyc.
 #
 # Usage:
-#   ./build.sh                  builds per-device .prg files (fr955 + enduro3)
-#   ./build.sh fr955            single device .prg
-#   ./build.sh --export         builds bin/HeartGraphWatchFace.iq (store/beta bundle)
+#   ./build.sh                       builds per-device .prg files (fr955 + enduro3)
+#   ./build.sh fr955                 single device .prg
+#   ./build.sh --export              builds bin/HeartGraphWatchFace.iq for the PRODUCTION store
+#                                    listing. Uses PROD_APP_ID from manifest.xml; strips :dev_only.
+#   ./build.sh --export-with-test    builds bin/HeartGraphWatchFace.iq for the BETA store listing.
+#                                    Temporarily swaps manifest.xml to DEV_APP_ID, keeps :dev_only
+#                                    symbols (Test Data picker, 13:37 clock lock, synthetic curves),
+#                                    then restores the manifest. NEVER submit this to production.
 set -e
 cd "$(dirname "$0")"
 
-SDK="$HOME/Library/Application Support/Garmin/ConnectIQ/Sdks/connectiq-sdk-mac-9.1.0-2026-03-09-6a872a80b"
-KEY="$HOME/Library/Application Support/Garmin/ConnectIQ/developer_key.der"
+# Locate the Connect IQ SDK + developer key. Defaults follow Garmin's
+# per-OS install conventions; override either by exporting CIQ_SDK
+# (full path to the SDK root that contains bin/monkeyc) or CIQ_KEY
+# (full path to your developer_key.der).
+if [ -z "${CIQ_BASE:-}" ]; then
+  case "$(uname -s)" in
+    Darwin)
+      CIQ_BASE="$HOME/Library/Application Support/Garmin/ConnectIQ" ;;
+    Linux)
+      CIQ_BASE="$HOME/.Garmin/ConnectIQ" ;;
+    CYGWIN*|MINGW*|MSYS*)
+      # Git Bash / MSYS2 / Cygwin on Windows.
+      CIQ_BASE="${APPDATA:-$HOME/AppData/Roaming}/Garmin/ConnectIQ" ;;
+    *)
+      echo "ERROR: unrecognised OS '$(uname -s)'. Set CIQ_SDK + CIQ_KEY env vars manually." >&2
+      exit 1 ;;
+  esac
+fi
+SDK="${CIQ_SDK:-$(ls -d "$CIQ_BASE"/Sdks/connectiq-sdk-* 2>/dev/null | sort | tail -1)}"
+KEY="${CIQ_KEY:-$CIQ_BASE/developer_key.der}"
+if [ -z "$SDK" ] || [ ! -x "$SDK/bin/monkeyc" ]; then
+  echo "ERROR: Connect IQ SDK not found. Looked under '$CIQ_BASE/Sdks/'." >&2
+  echo "       Set CIQ_SDK=/path/to/sdk to override." >&2
+  exit 1
+fi
+if [ ! -r "$KEY" ]; then
+  echo "ERROR: developer key not found at '$KEY'." >&2
+  echo "       Generate one via the SDK manager or set CIQ_KEY=/path/to/key.der to override." >&2
+  exit 1
+fi
+
+# In-place sed wrapper — BSD sed (macOS) requires a '' after -i; GNU
+# sed (Linux + Git Bash) errors on it. Detect once and apply.
+sed_inplace() {
+  if sed --version >/dev/null 2>&1; then
+    sed -i "$@"
+  else
+    sed -i '' "$@"
+  fi
+}
+
+# Connect IQ store app IDs. Production goes in manifest.xml as the
+# checked-in default; --export-with-test temporarily swaps to the dev
+# ID so beta sideloads live in a separate store listing (Garmin's
+# policy: a beta-uploaded ID can never be promoted to production).
+# Neither ID is a secret — they're the equivalent of an iOS bundle ID
+# and end up embedded in every installed binary anyway.
+PROD_APP_ID="9272fb58-b96e-40bc-8d64-084e455d8fd1"
+DEV_APP_ID="15225e5d-0f42-4100-9283-79468386515a"
 
 python3 palettes/gen-palettes.py
 python3 presets/gen-shipped.py
@@ -33,10 +85,29 @@ mkdir -p bin
 
 if [ "$1" = "--export" ]; then
   echo "=== building .iq bundle for Connect IQ Store upload ==="
-  # -r = release mode: drops (:debug)-annotated symbols (e.g. Test Mode's
-  # synthetic-ramp generator and its toggle), keeping the store binary
-  # clean of dev-only affordances.
-  "$SDK/bin/monkeyc" -e -r -f monkey.jungle -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
+  # Layered jungles: store.jungle adds :dev_only to excludeAnnotations
+  # so the Test Data picker, synthetic-HR generator, and 13:37 clock
+  # lock are stripped. `-r` additionally strips :debug (used elsewhere
+  # if anywhere).
+  "$SDK/bin/monkeyc" -e -r -f "monkey.jungle;store.jungle" -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
+  echo "=== done ==="
+  ls -la bin/HeartGraphWatchFace.iq
+  exit 0
+fi
+
+if [ "$1" = "--export-with-test" ]; then
+  echo "=== building .iq with Test Data symbols intact (sideload / beta only) ==="
+  echo "    DO NOT submit this artifact to the Connect IQ Store."
+  # Swap manifest.xml from PROD_APP_ID to DEV_APP_ID for this build
+  # only; the trap restores it on exit (success OR failure) so the
+  # working tree never lingers with the dev ID.
+  trap "sed_inplace \"s|$DEV_APP_ID|$PROD_APP_ID|\" manifest.xml" EXIT
+  sed_inplace "s|$PROD_APP_ID|$DEV_APP_ID|" manifest.xml
+  # Plain monkey.jungle only: :dev_only is NOT in excludeAnnotations so
+  # the Test Data picker + curves stay in the binary. monkeyc's
+  # built-in `-e` excludes :debug regardless, but our test code uses
+  # :dev_only specifically to survive that.
+  "$SDK/bin/monkeyc" -e -f monkey.jungle -o bin/HeartGraphWatchFace.iq -y "$KEY" -w
   echo "=== done ==="
   ls -la bin/HeartGraphWatchFace.iq
   exit 0

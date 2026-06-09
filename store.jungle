@@ -1,0 +1,7 @@
+# Layered on top of monkey.jungle for STORE-ready exports only.
+# Strips :dev_only-annotated code (Test Data picker, synthetic-HR
+# generator, 13:37 clock lock). Used by `./build.sh --export`.
+# Sideload exports (`--export-with-test`) skip this file so :dev_only
+# stays in the binary and the Test Data row remains visible on a
+# wirelessly-installed beta build.
+base.excludeAnnotations = dev_only

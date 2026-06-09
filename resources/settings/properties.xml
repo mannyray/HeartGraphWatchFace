@@ -9,6 +9,7 @@
     <property id="HRStep" type="number">10</property>
     <property id="HRMax" type="number">110</property>
     <property id="TestMode" type="boolean">false</property>
+    <property id="TestScenarioIndex" type="number">0</property>
     <property id="GraphBandPixels" type="number">10</property>
     <property id="ShowGraphAxis" type="boolean">true</property>
     <property id="MinimalMode" type="boolean">false</property>
