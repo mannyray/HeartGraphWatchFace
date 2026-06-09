@@ -250,12 +250,22 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
     // Get the current time and format it correctly
     var timeFormat = "$1$ $2$";
     var clockTime = System.getClockTime();
-    var hours = clockTime.hour.format("%02d");
-    var minutes = clockTime.min.format("%02d");
+    var h = clockTime.hour;
+    var m = clockTime.min;
+    var s = clockTime.sec;
+    // In test mode (debug builds only) lock the displayed time to 13:37
+    // so qc / colour-variants screenshots are visually consistent across
+    // a multi-minute capture run.
+    if (self has :testModeClockOverride) {
+      var hm = testModeClockOverride();
+      if (hm != null) { h = hm[0]; m = hm[1]; s = 0; }
+    }
+    var hours = h.format("%02d");
+    var minutes = m.format("%02d");
     var formatStrings = [hours, minutes];
     if (includeSeconds) {
       timeFormat = timeFormat + " $3$";
-      var seconds = clockTime.sec.format("%02d");
+      var seconds = s.format("%02d");
       formatStrings.add(seconds);
     }
     var timeString = Lang.format(timeFormat, formatStrings);
@@ -386,6 +396,16 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
   // without waiting for live HR data). Returns null if test mode is off.
   // (:debug) — excluded from release builds, so the Test Mode code path
   // never makes it into the store binary.
+  // Dev-only clock override. Returns [hour, minute] (13:37) when TestMode
+  // is on, else null. Paired with `(:debug)` so it's absent from release
+  // builds — production reads the real clock unconditionally.
+  (:debug)
+  function testModeClockOverride() as Array<Number> or Null {
+    var testMode = Application.Properties.getValue("TestMode") as Boolean;
+    if (testMode != true) { return null; }
+    return [13, 37];
+  }
+
   (:debug)
   function maybeBuildSyntheticRamp(targetCount as Number) as Array<Number> or Null {
     var testMode = Application.Properties.getValue("TestMode") as Boolean;
@@ -475,29 +495,32 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
       if (val < hrMin) {
         val = hrMin;
       }
-      // Cap bar height so unusually high HR doesn't overflow the chart area
-      // (color still maps to the top palette bucket via heartRateColour).
-      var displayVal = val;
-      if (displayVal > hrMax) {
-        displayVal = hrMax;
-      }
+      // Bars are NOT capped at hrMax — a high reading grows past the
+      // palette range up toward (or into) the time/date chrome. That's
+      // intentional: those elements render after drawGraph so they sit
+      // on top of any overshoot, while the colour stays at the top
+      // palette bucket via heartRateColour clamping.
 
       // colour code the heart rate in graph based on its value
       var colourNumber = heartRateColour(val);
       dc.setColor(colourNumber, colourNumber);
-      var barPixels = ((displayVal - hrMin) * bandPixels) / hrStep + 1;
+      var barPixels = ((val - hrMin) * bandPixels) / hrStep + 1;
       // draw a single 'bar in the bar graph'
       dc.fillRectangle(leftX + i, upperY - barPixels, 1, barPixels);
     }
 
     // Dash lines mark each palette bucket boundary, labeled by the
     // HR at the bottom of the bucket (i.e. hrMin, hrMin+step, ...).
+    // Both lines + labels are gated by ShowGraphAxis — when off the
+    // graph reduces to pure colored bars.
+    var showAxis =
+      Application.Properties.getValue("ShowGraphAxis") as Boolean;
     var lines = new Array<Number>[palette.size()];
     for (var i = 0; i < palette.size(); i++) {
       lines[i] = hrMin + (i + 1) * hrStep;
     }
 
-    for (var i = 0; i < lines.size(); i++) {
+    for (var i = 0; showAxis && i < lines.size(); i++) {
       if (lines[i] > maxValDetected) {
         break;
       }
@@ -543,7 +566,12 @@ class HeartGraphWatchFaceView extends WatchUi.WatchFace {
         );
       }
     }
-    drawXAxis(dc, leftX, upperY, data.size(), graphDivisions);
+    // X-axis baseline, "last N minutes" label, and tick marks are part
+    // of the same axis chrome as the dashed lines + numbers — they all
+    // disappear together when the user turns the axis off.
+    if (showAxis) {
+      drawXAxis(dc, leftX, upperY, data.size(), graphDivisions);
+    }
   }
 
   function drawXAxis(

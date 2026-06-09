@@ -15,6 +15,7 @@ function presetKeys() as Array<String> {
     "HRStep",
     "PaletteIndex",
     "GraphBandPixels",
+    "ShowGraphAxis",
     "HeartGraphMinutes",
     "MinimalMode"
   ] as Array<String>;
@@ -31,6 +32,7 @@ function getDefaultPresetValues() as Dictionary {
     "HRStep" => 10,
     "PaletteIndex" => 0,
     "GraphBandPixels" => 10,
+    "ShowGraphAxis" => true,
     "HeartGraphMinutes" => 3,
     "MinimalMode" => false
   };

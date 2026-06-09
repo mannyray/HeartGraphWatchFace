@@ -73,7 +73,7 @@ class AboutMenu extends WatchUi.Menu2 {
     Menu2.initialize({ :title => "About" });
     addItem(new WatchUi.MenuItem("Version", APP_VERSION, :version, null));
     addItem(new WatchUi.MenuItem("Commit", APP_COMMIT, :commit, null));
-    addItem(new WatchUi.MenuItem("GitHub", APP_REPO, :github, null));
+    addItem(new WatchUi.MenuItem("GitHub", "press to see", :github, null));
   }
 }
 
@@ -83,7 +83,57 @@ class AboutDelegate extends WatchUi.Menu2InputDelegate {
   }
 
   function onSelect(item as WatchUi.MenuItem) as Void {
-    // Informational rows — no action on tap. Back button exits.
+    // Most rows are info-only; GitHub row pushes a detail view because
+    // the full URL is too long to fit in the Menu2 sub-label slot.
+    if (item.getId() == :github) {
+      WatchUi.pushView(
+        new GithubUrlView(),
+        new GithubUrlDelegate(),
+        WatchUi.SLIDE_LEFT
+      );
+    }
+  }
+}
+
+// Full-screen detail view for the GitHub URL. Drawn manually because
+// Menu2 sub-labels truncate with "…" on long strings, and the repo path
+// is wider than the visible area on the smaller round screens.
+class GithubUrlView extends WatchUi.View {
+  function initialize() {
+    View.initialize();
+  }
+
+  function onUpdate(dc as Dc) as Void {
+    dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_BLACK);
+    dc.clear();
+
+    var w = dc.getWidth();
+    var h = dc.getHeight();
+    var cx = w / 2;
+
+    // Split "account/repo" on the slash and stack each segment on its
+    // own line so the long repo name fits even on 218x218 screens.
+    var slash = APP_REPO.find("/");
+    var account = slash != null ? APP_REPO.substring(0, slash) : APP_REPO;
+    var repo = slash != null ? APP_REPO.substring(slash + 1, APP_REPO.length()) : "";
+
+    var center = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+    dc.drawText(cx, (h * 28) / 100, Graphics.FONT_TINY,  "github.com",      center);
+    dc.drawText(cx, (h * 45) / 100, Graphics.FONT_TINY,  account + "/",     center);
+    dc.drawText(cx, (h * 62) / 100, Graphics.FONT_TINY,  repo,              center);
+
+    dc.drawText(cx, (h * 85) / 100, Graphics.FONT_XTINY, "back to return",  center);
+  }
+}
+
+class GithubUrlDelegate extends WatchUi.BehaviorDelegate {
+  function initialize() {
+    BehaviorDelegate.initialize();
+  }
+
+  function onBack() as Boolean {
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
+    return true;
   }
 }
 
@@ -92,7 +142,17 @@ class GraphMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Graph" });
     addItem(new WatchUi.MenuItem("Duration", "", :graphDuration, null));
-    addItem(new WatchUi.MenuItem("Size", "", :graphSize, null));
+    addItem(new WatchUi.MenuItem("Bar Height", "", :graphSize, null));
+    var axis = Application.Properties.getValue("ShowGraphAxis") as Boolean;
+    addItem(
+      new WatchUi.ToggleMenuItem(
+        "Axis",
+        "lines + numbers",
+        :showAxis,
+        axis,
+        null
+      )
+    );
     addItem(new WatchUi.MenuItem("Heart Rate", "", :hrRange, null));
     refreshLabels();
   }
@@ -107,12 +167,15 @@ class GraphMenu extends WatchUi.Menu2 {
     getItem(0).setSubLabel(minutes + " min");
 
     var bandPx = Application.Properties.getValue("GraphBandPixels") as Number;
-    getItem(1).setSubLabel(bandPx == 20 ? "double" : "normal");
+    getItem(1).setSubLabel(bandPx == 20 ? "tall" : "normal");
+
+    // getItem(2) is the Axis toggle — its checkmark is its sub-label,
+    // no manual refresh needed.
 
     var hrMin = Application.Properties.getValue("HRMin") as Number;
     var hrStep = Application.Properties.getValue("HRStep") as Number;
     var hrMax = Application.Properties.getValue("HRMax") as Number;
-    getItem(2).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
+    getItem(3).setSubLabel(hrMin + " / " + hrStep + " / " + hrMax);
   }
 }
 
@@ -135,6 +198,9 @@ class GraphMenuDelegate extends WatchUi.Menu2InputDelegate {
         new GraphSizeDelegate(),
         WatchUi.SLIDE_LEFT
       );
+    } else if (id == :showAxis) {
+      var t = item as WatchUi.ToggleMenuItem;
+      Application.Properties.setValue("ShowGraphAxis", t.isEnabled());
     } else if (id == :hrRange) {
       WatchUi.pushView(
         new HRRangeMenu(),
@@ -283,7 +349,7 @@ class ColoursMenuDelegate extends WatchUi.Menu2InputDelegate {
     } else if (id == :palette) {
       WatchUi.pushView(
         new PaletteMenu(),
-        new PaletteDelegate(),
+        new PaletteMenuDelegate(),
         WatchUi.SLIDE_LEFT
       );
     }
@@ -573,6 +639,7 @@ class ResetConfirmDelegate extends WatchUi.ConfirmationDelegate {
       Application.Properties.setValue("HRStep", 10);
       Application.Properties.setValue("PaletteIndex", 0);
       Application.Properties.setValue("GraphBandPixels", 10);
+      Application.Properties.setValue("ShowGraphAxis", true);
       Application.Properties.setValue("HeartGraphMinutes", 3);
       Application.Properties.setValue("TestMode", false);
     }
@@ -612,11 +679,11 @@ class GraphDurationDelegate extends WatchUi.Menu2InputDelegate {
 
 class GraphSizeMenu extends WatchUi.Menu2 {
   function initialize() {
-    Menu2.initialize({ :title => "Graph Size" });
+    Menu2.initialize({ :title => "Bar Height" });
     var current =
       Application.Properties.getValue("GraphBandPixels") as Number;
     addOption("Normal", 10, current);
-    addOption("Double", 20, current);
+    addOption("Tall", 20, current);
   }
 
   function addOption(
@@ -794,14 +861,58 @@ class PaletteStrip extends WatchUi.Drawable {
   }
 }
 
+// Top-level palette picker. Lists distinct categories (in palettes.json
+// order of first occurrence). Each row pushes a CategoryPaletteMenu
+// showing only the palettes within that category. The item id is the
+// category name as a String; the picker-leaf delegate sets PaletteIndex.
 class PaletteMenu extends WatchUi.Menu2 {
   function initialize() {
     Menu2.initialize({ :title => "Palette" });
+    var palettes = getPalettes();
+    var currentIdx =
+      Application.Properties.getValue("PaletteIndex") as Number;
+    var currentCategory = null;
+    if (currentIdx >= 0 && currentIdx < palettes.size()) {
+      currentCategory = palettes[currentIdx][:category];
+    }
+    var seen = [] as Array<String>;
+    for (var i = 0; i < palettes.size(); i++) {
+      var cat = palettes[i][:category] as String;
+      if (seen.indexOf(cat) >= 0) { continue; }
+      seen.add(cat);
+      var sub = cat.equals(currentCategory) ? "current" : null;
+      addItem(new WatchUi.MenuItem(cat, sub, cat, null));
+    }
+  }
+}
+
+class PaletteMenuDelegate extends WatchUi.Menu2InputDelegate {
+  function initialize() {
+    Menu2InputDelegate.initialize();
+  }
+
+  function onSelect(item as WatchUi.MenuItem) as Void {
+    var cat = item.getId() as String;
+    WatchUi.pushView(
+      new CategoryPaletteMenu(cat),
+      new CategoryPaletteDelegate(),
+      WatchUi.SLIDE_LEFT
+    );
+  }
+}
+
+// Leaf palette picker for one category. Items are IconMenuItems with a
+// PaletteStrip swatch, ids are the global palette index (preserved for
+// shareable settings codes).
+class CategoryPaletteMenu extends WatchUi.Menu2 {
+  function initialize(category as String) {
+    Menu2.initialize({ :title => category });
     var palettes = getPalettes();
     var current =
       Application.Properties.getValue("PaletteIndex") as Number;
     for (var i = 0; i < palettes.size(); i++) {
       var p = palettes[i];
+      if (!(p[:category] as String).equals(category)) { continue; }
       var sub = i == current ? "current" : null;
       addItem(
         new WatchUi.IconMenuItem(
@@ -816,16 +927,19 @@ class PaletteMenu extends WatchUi.Menu2 {
   }
 }
 
-class PaletteDelegate extends WatchUi.Menu2InputDelegate {
+class CategoryPaletteDelegate extends WatchUi.Menu2InputDelegate {
   function initialize() {
     Menu2InputDelegate.initialize();
   }
 
   function onSelect(item as WatchUi.MenuItem) as Void {
     Application.Properties.setValue("PaletteIndex", item.getId() as Number);
+    // Pop twice so we return to the Colours menu, not the category list.
+    WatchUi.popView(WatchUi.SLIDE_RIGHT);
     WatchUi.popView(WatchUi.SLIDE_RIGHT);
   }
 }
+
 
 // HR Range — sub-menu lets the user pick Min/Step/Max from presets.
 class HRRangeMenu extends WatchUi.Menu2 {

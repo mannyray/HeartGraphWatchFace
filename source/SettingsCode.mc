@@ -12,7 +12,9 @@ import Toybox.Lang;
 //   Y         1 Base32 char = checksum (mod-32 sum of XXXXX char values)
 //
 // Bit layout (LSB = bit 0):
-//   bit  0     reserved (v2 inline-palette flag) — always 0 in v1
+//   bit  0     ShowGraphAxis     (0=on, 1=off) — invert so older v1 codes
+//                                 (with bit 0 always 0) still decode as
+//                                 "axis on", which matches the default.
 //   bits 1-2   BackgroundColor   (0=black, 1=white)
 //   bits 3-4   TimeColor         (0=default/-2, 1=gray/0x555555)
 //   bits 5-6   GraphNumberColor  (0=default/-2, 1=hidden/-3, 2=gray/0xAAAAAA)
@@ -149,7 +151,9 @@ function _minutesDec(b as Number) as Number {
 function encodeSettings(values as Dictionary) as String {
   var hrMin = values["HRMin"] as Number;
   var packed = 0;
-  // bit 0: v2 flag, always 0 in v1
+  // bit 0: ShowGraphAxis inverted so axis-on (the default) is 0,
+  // matching every v1 code emitted before this field existed.
+  packed = packed | (((values["ShowGraphAxis"] as Boolean) ? 0 : 1) & 0x1);
   packed = packed | ((_bgEnc(values["BackgroundColor"] as Number) & 0x3) << 1);
   packed = packed | ((_tcEnc(values["TimeColor"] as Number) & 0x3) << 3);
   packed = packed | ((_gnEnc(values["GraphNumberColor"] as Number) & 0x3) << 5);
@@ -165,8 +169,7 @@ function encodeSettings(values as Dictionary) as String {
   return "v1.0-" + payload + "-" + computeChecksum(payload);
 }
 
-// Returns null if the code is malformed, has a bad checksum, or is from
-// a future format version (flag bit 0 set).
+// Returns null if the code is malformed or has a bad checksum.
 function decodeSettings(code as String) as Dictionary or Null {
   if (code == null) { return null; }
   if (code.length() != 12) { return null; }
@@ -179,11 +182,10 @@ function decodeSettings(code as String) as Dictionary or Null {
 
   var packed = base32Decode(payload);
   if (packed < 0) { return null; }
-  // Reject v2+ formats (bit 0 reserved for inline-palette flag).
-  if ((packed & 0x1) != 0) { return null; }
 
   var hrMin = _hrMinDec((packed >> 7) & 0x7);
   return {
+    "ShowGraphAxis" => (packed & 0x1) == 0,
     "BackgroundColor" => _bgDec((packed >> 1) & 0x3),
     "TimeColor" => _tcDec((packed >> 3) & 0x3),
     "GraphNumberColor" => _gnDec((packed >> 5) & 0x3),
