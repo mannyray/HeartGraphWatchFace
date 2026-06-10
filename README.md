@@ -65,7 +65,7 @@ The watch forces 'military' style time on the user as all other time formats are
 
 ## How To Install 
 
-The watch face app is available on the Garmin marketplace. TODO: link the app on the store once it is reviewed
+The watch face app is available on the Garmin marketplace. Navigate to https://apps.garmin.com/apps/a6e8a393-4945-4040-bace-726368114108 in order to download it.
 
 ### Building and installing from source
 
